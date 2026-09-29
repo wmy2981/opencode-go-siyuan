@@ -106,6 +106,15 @@ export class InlineUsage {
             event.preventDefault();
             this.host.onClick();
         });
+        // 移动端：tap 在 touchend 之后还会补发一次「此刻」重新命中的合成 click。弹窗是在
+        // pointerdown 里插进 DOM 的，等这次 click 到达时，手指下面已经是整屏的
+        // `.b3-dialog__scrim`（`app/src/dialog/index.ts` 给它绑了「点一下就 destroy」），
+        // 于是弹窗刚出现就被关掉 —— 桌面端不会：按下与抬起的目标不同，click 落在两者的
+        // 共同祖先上。在 touchstart 上取消默认行为可以从源头掐掉这一串兼容鼠标事件
+        // （pointerdown 在 touchstart 之前触发，打开弹窗不受影响）。
+        node.addEventListener("touchstart", (event) => {
+            event.preventDefault();
+        }, {passive: false});
         node.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
