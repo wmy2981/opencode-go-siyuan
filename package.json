@@ -1,0 +1,42 @@
+{
+  "name": "opencode-go-siyuan",
+  "version": "0.1.0",
+  "description": "A SiYuan plugin that ships the OpenCode Go provider, a stable per-conversation x-opencode-session header and the rolling / weekly / monthly usage",
+  "main": "dist/index.js",
+  "private": false,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "webpack --config webpack.config.js --mode development",
+    "build": "webpack --config webpack.config.js --mode production",
+    "icon": "node scripts/render-icon.mjs",
+    "preview": "node scripts/render-preview.mjs"
+  },
+  "keywords": [
+    "siyuan",
+    "siyuan-plugin",
+    "opencode",
+    "opencode-go",
+    "usage"
+  ],
+  "author": "wmy2981",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^14.0.0",
+    "css-loader": "^7.1.4",
+    "esbuild-loader": "^4.5.0",
+    "mini-css-extract-plugin": "^2.10.2",
+    "playwright": "^1.58.0",
+    "sass": "^1.100.0",
+    "sass-loader": "^17.0.0",
+    "sharp": "^0.35.3",
+    "siyuan": "1.2.8",
+    "tslib": "^2.8.1",
+    "typescript": "^6.0.3",
+    "webpack": "^5.107.2",
+    "webpack-cli": "^7.0.3",
+    "zip-webpack-plugin": "^4.0.3"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "opencode-go-siyuan",
+  "author": "wmy2981",
+  "url": "https://github.com/wmy2981/opencode-go-siyuan",
+  "version": "0.1.0",
+  "minAppVersion": "3.8.5",
+  "backends": [
+    "all"
+  ],
+  "frontends": [
+    "all"
+  ],
+  "disabledInPublish": true,
+  "displayName": {
+    "default": "OpenCode Go",
+    "zh-CN": "OpenCode Go"
+  },
+  "description": {
+    "default": "Ships the OpenCode Go provider, a stable per-conversation x-opencode-session header and the rolling / weekly / monthly usage",
+    "zh-CN": "内置 OpenCode Go 提供商，发送逐会话稳定的 x-opencode-session 请求头，并展示 5 小时 / 周 / 月用量"
+  },
+  "readme": {
+    "default": "README.md",
+    "zh-CN": "README.zh-CN.md"
+  },
+  "icon": "icon.png",
+  "preview": "preview.png",
+  "funding": {
+    "custom": [
+      "https://afdian.com/a/wmy2981"
+    ]
+  },
+  "keywords": [
+    "opencode",
+    "opencode-go",
+    "ai",
+    "provider",
+    "usage"
+  ]
+}

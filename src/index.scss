@@ -1,0 +1,5 @@
+// 插件样式入口。
+// 组件相关样式随对应功能一起加入，这里先保留一个最小的规则，保证打包产物里有 index.css。
+.opencode-go-plugin {
+  box-sizing: border-box;
+}
