@@ -4,7 +4,7 @@
 
 把 [OpenCode Go](https://opencode.ai/docs/go/) 订阅接入思源笔记自身 AI 设置页的插件。
 
-![preview](assets/preview.png)
+![preview](https://cdn.jsdelivr.net/gh/wmy2981/opencode-go-siyuan@main/assets/preview.png)
 
 ## 功能
 

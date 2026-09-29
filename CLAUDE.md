@@ -22,6 +22,7 @@ Do not tag or publish by hand: pushing to `main` runs `.github/workflows/cd.yml`
 - Commit bodies explain the *why* and end with how the change was verified; recent ones are Chinese, and that mix is the house style — mirror the neighbouring commits.
 - Source comments are Chinese. Indentation is 4 spaces, double quotes, semicolons; nothing enforces this automatically, so match the file you are editing.
 - Every UI string needs a key in **both** `src/i18n/en.json` and `src/i18n/zh-CN.json`. The two files are key-for-key identical, and an unknown key renders as the raw key rather than falling back to another language.
+- README images use absolute URLs (`https://cdn.jsdelivr.net/gh/<owner>/<repo>@main/assets/...`, the same host the kernel builds for its own package images), never repo-relative paths: the packaged `README.md` sits in the archive root, where `assets/` does not exist, and the kernel falls back to a `/plugins/<name>/assets/...` URL that 404s.
 - `tsconfig.json` has `strictNullChecks: false` with `noImplicitAny: true`, and the bundle targets `es6`. Code that runs in SiYuan must not assume Node or Electron APIs.
 
 ## Architecture

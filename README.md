@@ -5,7 +5,7 @@
 A SiYuan plugin that brings the [OpenCode Go](https://opencode.ai/docs/go/) subscription into
 SiYuan's own AI settings page.
 
-![preview](assets/preview.png)
+![preview](https://cdn.jsdelivr.net/gh/wmy2981/opencode-go-siyuan@main/assets/preview.png)
 
 ## What it does
 
