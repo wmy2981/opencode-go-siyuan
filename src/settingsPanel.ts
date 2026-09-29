@@ -120,6 +120,8 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
      * 标签与可用性，还包括其它步骤的状态文案与下面的自检结果（例如刚创建完供应商，
      * 第 2 步就该从「请先完成第 1 步」变成 API Key 的状态）。
      *
+     * 按钮是否可点由各自的 `sync` 说了算：第 1、2 步有前置条件，第 3 步的检查可以随便点。
+     *
      * 宽度用 `fn__size200`，与下面「修复」等设置项的按钮同宽，三个步骤看起来才是一组。
      */
     const actionButton = (onClick: () => Promise<void>,
@@ -320,7 +322,9 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
             showMessage(t("guide.step3.done"));
         },
         (button) => {
+            // 检查随时可以重来：一次检查进行期间按钮会被禁用，结束后在这里放回可点状态。
             button.textContent = t("guide.step3.action");
+            button.disabled = false;
         },
     );
     checkElement = document.createElement("div");
