@@ -51,7 +51,7 @@ request**, so the injected provider carries:
 ```json
 "headers": {
   "x-opencode-session": "{{vars.OPENCODE_GO_SESSION}}",
-  "User-Agent": "siyuan-opencode-go/0.1.0"
+  "User-Agent": "siyuan-opencode-go/0.2.0"
 }
 ```
 
