@@ -148,7 +148,6 @@ a restart.
 - `OPENCODE_GO_SESSION` lives in *Settings → Keys and variables*. The plugin maintains it and removes
   it when the plugin is uninstalled; deleting it manually only costs cache affinity, never a
   rejected request.
-- Not submitted to the SiYuan marketplace yet.
 
 ## Development
 
