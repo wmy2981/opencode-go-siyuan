@@ -78,7 +78,12 @@ export class InlineUsage {
             return;
         }
         const panel = anchor.closest<HTMLElement>(".sy__agentChat");
-        if (this.node?.isConnected && anchor.nextElementSibling === this.node) {
+        if (this.node?.isConnected) {
+            // 只把它挪回锚点后面，绝不重建：重建会换掉节点与它上面的监听器，
+            // 用户按下与抬起之间一旦发生这种替换，click 就永远不会产生。
+            if (anchor.nextElementSibling !== this.node) {
+                anchor.insertAdjacentElement("afterend", this.node);
+            }
             this.observePanel(panel);
             this.render();
             return;
@@ -91,7 +96,16 @@ export class InlineUsage {
         node.setAttribute(NODE_ATTR, "true");
         node.setAttribute("tabindex", "0");
         node.setAttribute("role", "button");
-        node.addEventListener("click", () => this.host.onClick());
+        // 用 pointerdown 而不是 click：智能体面板里流式输出时每一帧都在改 DOM，
+        // 节点只要在按下与抬起之间被挪动过，click 就永远等不到 —— 表现正是
+        // 「点了但没有弹窗」。pointerdown 在按下的那一刻就触发，不受后续重绘影响。
+        node.addEventListener("pointerdown", (event) => {
+            if (event.button !== 0) {
+                return;
+            }
+            event.preventDefault();
+            this.host.onClick();
+        });
         node.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
