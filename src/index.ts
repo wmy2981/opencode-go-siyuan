@@ -7,6 +7,7 @@ import {createTranslator} from "./i18n";
 import {InlineUsage} from "./inline";
 import {createLogger} from "./log";
 import {PROVIDER_DISPLAY_NAME} from "./opencode";
+import type {ProviderCheck} from "./provider";
 import {ProviderManager} from "./provider";
 import {ProviderIconPatcher} from "./providerIcon";
 import {SessionHeaderController} from "./session";
@@ -162,13 +163,25 @@ export default class OpenCodeGoPlugin extends Plugin {
         if (!this.provider) {
             return;
         }
+        await this.runProviderAction(() => this.provider!.ensure());
+    }
+
+    /** 用户重新打开「自动注入」开关：这是显式意图，允许重建被手动删除的供应商。 */
+    private async repairProvider(): Promise<void> {
+        if (!this.provider || !this.settings.injectProvider) {
+            return;
+        }
+        await this.runProviderAction(() => this.provider!.repair());
+    }
+
+    private async runProviderAction(action: () => Promise<ProviderCheck>): Promise<void> {
         try {
-            const check = await this.provider.ensure();
+            const check = await action();
             this.log("provider", check.exists
                 ? "provider ready: " + check.providerId
                 : "no OpenCode Go provider is present");
         } catch (error) {
-            this.log("provider", "ensure failed: " + String(error));
+            this.log("provider", "provider action failed: " + String(error));
         }
     }
 
@@ -202,13 +215,18 @@ export default class OpenCodeGoPlugin extends Plugin {
     }
 
     private async applySettings(draft: PluginSettings): Promise<void> {
+        const injectedAgain = !this.settings.injectProvider && draft.injectProvider;
         this.settings = normalizeSettings(draft);
         await saveSettings(this, this.settings);
         this.inline?.setEnabled(this.settings.inlineUsage);
         this.startTimer();
         await this.session?.sync();
         this.inline?.schedule();
-        await this.ensureProvider();
+        if (injectedAgain) {
+            await this.repairProvider();
+        } else {
+            await this.ensureProvider();
+        }
         await this.refreshUsage();
     }
 }

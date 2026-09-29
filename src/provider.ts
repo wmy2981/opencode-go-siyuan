@@ -2,15 +2,17 @@ import {fetchSyncPost} from "siyuan";
 import type {SetAIRequestInput, SettingAI, SettingModel, SettingProvider, SettingProviderInput} from "siyuan";
 import {
     DEFAULT_PLUGIN_UA,
+    findBlockingNonASCII,
     isOpenCodeGoBaseURL,
     newNodeID,
     OPENCODE_GO_BASE_URL,
     PROVIDER_DISPLAY_NAME,
+    sanitizeHeaderValue,
     SESSION_HEADER,
     SESSION_VARIABLE,
     USER_AGENT_HEADER,
 } from "./opencode";
-import type {LogFn, PluginSettings, UsageTarget} from "./types";
+import type {ApiKeyIssue, LogFn, PluginSettings, UsageTarget} from "./types";
 
 const AGENT_MODEL_PICKER_SELECTOR = ".sy__agentChat .agent-chat__model-picker";
 const DEFAULT_REQUEST_TIMEOUT = 120;
@@ -23,11 +25,24 @@ export interface ProviderCheck {
     displayName: string;
     baseURL: string;
     apiKeySet: boolean;
+    /** API Key 的可用性问题；`nonAscii` 时 `apiKeyIndex` 指向第一个非法字符。 */
+    apiKeyIssue: ApiKeyIssue;
+    apiKeyIndex: number;
+    /**
+     * 存储值里混着空白/零宽字符等杂质。用量请求会先净化再用，所以这里不算故障；
+     * 但对话是由内核原样发出去的，带着杂质的 Key 会被上游拒，需要点「立即修复」清理。
+     */
+    apiKeyDirty: boolean;
     modelCount: number;
     /** 缺失的必需请求头（会自动补齐）。 */
     missing: string[];
     /** 取值与插件期望不同的请求头（不会自动覆盖）。 */
     conflicts: string[];
+    /**
+     * 插件曾经创建过供应商（`injectedProviderId` 有值）但现在已经不存在：
+     * 说明用户自己删掉了。此时后台不再自动重建，只有显式点「立即修复」才会。
+     */
+    dismissed: boolean;
     /** 同样命中官方端点、但不是插件维护的供应商。 */
     foreign: Array<{providerId: string; displayName: string; missing: string[]; conflicts: string[]}>;
 }
@@ -60,6 +75,51 @@ const writeHeader = (headers: Record<string, string>, name: string, value: strin
     headers[key && key !== name ? key : name] = value;
 };
 
+/** 新建供应商条目的初始形态；`id` 直接用合法节点 ID，避免内核 `Normalize` 再分配一个。 */
+const newProviderConfig = (headers: Record<string, string>): SettingProvider => ({
+    id: newNodeID(),
+    displayName: PROVIDER_DISPLAY_NAME,
+    enabled: true,
+    apiKey: "",
+    baseURL: OPENCODE_GO_BASE_URL,
+    protocol: "",
+    requestTimeout: DEFAULT_REQUEST_TIMEOUT,
+    headers: {...headers},
+    models: [],
+});
+
+/**
+ * 把新拉到的模型并进既有列表，语义与思源原生「获取模型列表」一致：只增不减。
+ * 已有条目保留自己的 `id`、`displayName` 与启用状态——内核里 `agent.modelId` /
+ * `editing.modelId` 引用的是模型 `id`，每次刷新都换 id 会把用户选好的模型悄悄重置掉；
+ * 只按名字补上新的上下文长度。
+ */
+const mergeModels = (previous: Array<SettingModel | null> | null | undefined,
+                     fetched: SettingModel[]): SettingModel[] => {
+    const merged: SettingModel[] = (previous ?? [])
+        .filter((model): model is SettingModel => !!model?.name);
+    fetched.forEach((model) => {
+        const index = merged.findIndex((item) => item.name === model.name);
+        const contextLength = typeof model.contextLength === "number" && model.contextLength > 0
+            ? model.contextLength
+            : 0;
+        if (index < 0) {
+            merged.push({
+                id: newNodeID(),
+                enabled: true,
+                name: model.name,
+                displayName: "",
+                ...(contextLength > 0 ? {contextLength} : {}),
+            });
+            return;
+        }
+        if (contextLength > 0) {
+            merged[index] = {...merged[index], contextLength};
+        }
+    });
+    return merged;
+};
+
 /** 当前实际生效的模型 id：面板里的选择器优先，回落到 AI 配置。 */
 export const currentModelId = (): string => {
     const domId = document.querySelector<HTMLElement>(AGENT_MODEL_PICKER_SELECTOR)?.dataset.modelId;
@@ -85,6 +145,8 @@ export const userAgentOf = (settings: PluginSettings): string => {
  *
  * 原则（与需求约定一致）：
  * - 只补缺失字段，不覆盖用户自己改过的取值；要覆盖必须由用户显式点「一键修复」。
+ * - 用户手动删除后就不要再自动创建，否则「删掉又冒出来」，只有显式修复才重建。
+ * - 写回前必须重新读取实时配置，绝不拿旧快照整体覆盖——那会抹掉用户刚粘贴的 API Key。
  * - 写入走内核原生的 `/api/setting/setAI`，因此该供应商在原生页面里是一个普通条目，
  *   可以被原生地改名、改 key、删模型、删除。
  */
@@ -111,12 +173,14 @@ export class ProviderManager {
     /** 只读自检，不修改任何配置。 */
     inspect(): ProviderCheck {
         const settings = this.getSettings();
-        const ai = readAI();
-        const providers = ai ? listProviders(ai) : [];
-        const matches = providers.filter((provider) => isOpenCodeGoBaseURL(provider.baseURL));
-        const owned = this.findOwned(matches, settings);
+        const state = this.readState(settings);
+        const owned = state.owned;
         const expected = this.expectedHeaders();
-        const foreign = matches
+        const rawApiKey = owned?.apiKey ?? "";
+        const apiKey = sanitizeHeaderValue(rawApiKey);
+        // 位置按用户实际看到的原始取值算，并跳过修复就能清掉的杂质。
+        const invalid = findBlockingNonASCII(rawApiKey);
+        const foreign = state.matches
             .filter((provider) => provider !== owned)
             .map((provider) => ({
                 providerId: provider.id,
@@ -128,9 +192,13 @@ export class ProviderManager {
             providerId: owned?.id ?? "",
             displayName: owned?.displayName || (owned ? PROVIDER_DISPLAY_NAME : ""),
             baseURL: owned?.baseURL ?? "",
-            apiKeySet: !!owned?.apiKey?.trim(),
+            apiKeySet: apiKey !== "",
+            apiKeyIssue: apiKey === "" ? "missing" : invalid ? "nonAscii" : "ok",
+            apiKeyIndex: invalid ? invalid.index : -1,
+            apiKeyDirty: rawApiKey !== apiKey,
             modelCount: (owned?.models ?? []).filter(Boolean).length,
             ...this.diffHeaders(owned, expected),
+            dismissed: !owned && !!settings.injectedProviderId,
             foreign,
         };
     }
@@ -147,10 +215,11 @@ export class ProviderManager {
             providerId: provider.id,
             displayName: provider.displayName || PROVIDER_DISPLAY_NAME,
             baseURL: provider.baseURL,
-            apiKey: typeof provider.apiKey === "string" ? provider.apiKey.trim() : "",
+            apiKey: sanitizeHeaderValue(provider.apiKey ?? ""),
             modelId,
         });
-        const withKey = matches.filter((provider) => provider.enabled && !!provider.apiKey?.trim());
+        const withKey = matches.filter((provider) =>
+            provider.enabled && sanitizeHeaderValue(provider.apiKey ?? "") !== "");
         const exact = withKey.find((provider) =>
             (provider.models ?? []).some((model) => model?.enabled && model.id === modelId));
         return toTarget(exact || withKey[0] || matches[0]);
@@ -176,25 +245,23 @@ export class ProviderManager {
         return owner ? isOpenCodeGoBaseURL(owner.baseURL) : true;
     }
 
-    /** 确保供应商存在并补齐缺失字段（不覆盖已有取值）。 */
+    /**
+     * 后台保证（不覆盖、不重建已删除的供应商）：只补齐缺失字段。
+     * 用户手动删掉之后这里不会再创建，避免「删了又回来」。
+     */
     async ensure(): Promise<ProviderCheck> {
         return this.apply(false);
     }
 
-    /** 用户显式点击「一键修复」：缺失补齐 + 冲突覆盖。 */
+    /** 用户显式点击「一键修复」：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
     async repair(): Promise<ProviderCheck> {
         return this.apply(true);
     }
 
     /** 通过思源原生的模型列表接口刷新模型；返回模型数量。 */
     async refreshModels(): Promise<number> {
-        const ai = readAI();
-        if (!ai) {
-            return 0;
-        }
-        const providers = listProviders(ai);
-        const provider = this.findOwned(providers, this.getSettings()) ||
-            providers.find((item) => isOpenCodeGoBaseURL(item.baseURL));
+        const state = this.readState(this.getSettings());
+        const provider = state.owned || state.matches[0];
         if (!provider) {
             return 0;
         }
@@ -202,43 +269,90 @@ export class ProviderManager {
         if (!models || models.length === 0) {
             return 0;
         }
-        provider.models = models;
-        await this.writeAI(ai);
+        await this.commit({
+            targetId: provider.id,
+            creating: false,
+            force: false,
+            models,
+            expected: this.expectedHeaders(),
+        });
         return models.length;
     }
 
+    /**
+     * 注入流程分两段，避免「读旧快照 → 网络等待 → 整体写回」把用户的改动抹掉：
+     * 1. 只读地判断该做什么，必要时先 await 拉模型（此期间不持有可写引用）；
+     * 2. 重新读取实时配置，同步地改完，紧接着写回（读与写之间不再有 await）。
+     */
     private async apply(force: boolean): Promise<ProviderCheck> {
+        const settings = this.getSettings();
+        const state = this.readState(settings);
+        let provider = state.owned;
+        let creating = false;
+        if (!provider) {
+            // 从没注入过（首次安装）时按开关自动创建；一旦记过 id 就说明用户手动删了它，
+            // 后台不再擅自重建，只有显式修复或重新打开开关才会。
+            const mayCreate = force || (!settings.injectedProviderId && settings.injectProvider);
+            if (!mayCreate) {
+                this.log("provider", settings.injectedProviderId
+                    ? "the provider was deleted by the user; not recreating it"
+                    : "no OpenCode Go provider is present");
+                return this.inspect();
+            }
+            // 官方端点上已经有条目（用户自己建的或历史遗留）就直接接管，绝不插重复条目。
+            provider = state.matches[0];
+            if (!provider) {
+                creating = true;
+            } else {
+                this.log("provider", "adopted the existing OpenCode Go provider: " + provider.id);
+            }
+        }
+        // 新建时必须先拿到模型列表；已有条目则只在模型为空时补拉。
+        const needModels = creating || (provider?.models ?? []).filter(Boolean).length === 0;
+        const models = needModels
+            ? await this.fetchModels(provider ?? newProviderConfig(this.expectedHeaders()))
+            : undefined;
+        await this.commit({
+            targetId: creating ? "" : (provider?.id ?? ""),
+            creating,
+            force,
+            models,
+            expected: this.expectedHeaders(),
+        });
+        return this.inspect();
+    }
+
+    /** 重新读取实时配置、同步改写、立即写回。读与写之间不允许出现 await。 */
+    private async commit(options: {
+        targetId: string;
+        creating: boolean;
+        force: boolean;
+        models?: SettingModel[];
+        expected: Record<string, string>;
+    }): Promise<void> {
         const settings = this.getSettings();
         const ai = readAI();
         if (!ai) {
             this.log("provider", "AI config is unavailable; skip injection");
-            return this.inspect();
+            return;
         }
         const providers = listProviders(ai);
-        const expected = this.expectedHeaders();
-        let provider = this.findOwned(providers, settings);
-        let changed = false;
-        if (!provider && (settings.injectProvider || force)) {
-            provider = {
-                id: newNodeID(),
-                displayName: PROVIDER_DISPLAY_NAME,
-                enabled: true,
-                apiKey: "",
-                baseURL: OPENCODE_GO_BASE_URL,
-                protocol: "",
-                requestTimeout: DEFAULT_REQUEST_TIMEOUT,
-                headers: {},
-                models: [],
-            };
+        let provider = options.creating
+            ? undefined
+            : providers.find((item) => item.id === options.targetId);
+        if (!provider && !options.creating) {
+            // 等待模型列表期间用户把它删掉了：尊重删除，不要复活。
+            this.log("provider", "the target provider disappeared; skip writing");
+            return;
+        }
+        let changed = options.creating;
+        if (!provider) {
+            provider = newProviderConfig(options.expected);
             providers.push(provider);
             ai.providers = providers;
-            changed = true;
             this.log("provider", "created the OpenCode Go provider");
         }
-        if (!provider) {
-            return this.inspect();
-        }
-        if (force) {
+        if (options.force) {
             provider.baseURL = OPENCODE_GO_BASE_URL;
             provider.enabled = true;
             if (!provider.displayName) {
@@ -247,36 +361,51 @@ export class ProviderManager {
             if (!provider.requestTimeout || provider.requestTimeout <= 0) {
                 provider.requestTimeout = DEFAULT_REQUEST_TIMEOUT;
             }
+            // 修 key 里的空白/零宽字符——这类杂质会让请求直接失败。
+            const cleaned = sanitizeHeaderValue(provider.apiKey ?? "");
+            if (cleaned !== provider.apiKey) {
+                provider.apiKey = cleaned;
+                changed = true;
+            }
         }
         if (!provider.headers || typeof provider.headers !== "object") {
             provider.headers = {};
             changed = true;
         }
-        for (const [name, value] of Object.entries(expected)) {
+        for (const [name, value] of Object.entries(options.expected)) {
             const actual = readHeader(provider.headers, name);
             if (typeof actual === "undefined") {
                 writeHeader(provider.headers, name, value);
                 changed = true;
-            } else if (actual !== value && force) {
+            } else if (actual !== value && options.force) {
                 writeHeader(provider.headers, name, value);
                 changed = true;
             }
         }
-        const modelCount = (provider.models ?? []).filter(Boolean).length;
-        if (modelCount === 0) {
-            const models = await this.fetchModels(provider);
-            if (models && models.length > 0) {
-                provider.models = models;
-                changed = true;
-            }
+        if (options.models && options.models.length > 0) {
+            provider.models = mergeModels(provider.models, options.models);
+            changed = true;
         }
+        const providerId = provider.id;
         if (changed) {
             await this.writeAI(ai);
         }
-        if (provider.id && provider.id !== settings.injectedProviderId) {
-            await this.patchSettings({injectedProviderId: provider.id});
+        if (providerId && providerId !== settings.injectedProviderId) {
+            await this.patchSettings({injectedProviderId: providerId});
         }
-        return this.inspect();
+    }
+
+    /** 一次性读出后续判断所需的全部状态，避免在多处重复过滤。 */
+    private readState(settings: PluginSettings): {
+        ai: SettingAI | null;
+        providers: SettingProvider[];
+        matches: SettingProvider[];
+        owned: SettingProvider | undefined;
+    } {
+        const ai = readAI();
+        const providers = ai ? listProviders(ai) : [];
+        const matches = providers.filter((provider) => isOpenCodeGoBaseURL(provider.baseURL));
+        return {ai, providers, matches, owned: this.findOwned(matches, settings)};
     }
 
     private diffHeaders(provider: SettingProvider | undefined, expected: Record<string, string>): {
@@ -305,6 +434,7 @@ export class ProviderManager {
             return byID;
         }
         if (settings.injectedProviderId) {
+            // 记过 id 却找不到 → 用户删掉了；不要再按显示名猜一个「像是我们的」条目。
             return undefined;
         }
         return matches.find((provider) => provider.displayName === PROVIDER_DISPLAY_NAME);
