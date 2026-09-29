@@ -1,5 +1,7 @@
 # OpenCode Go for SiYuan
 
+**English** · [简体中文](README.zh-CN.md)
+
 A SiYuan plugin that brings the [OpenCode Go](https://opencode.ai/docs/go/) subscription into
 SiYuan's own AI settings page.
 
@@ -70,7 +72,7 @@ installation-level id is sent for everything.
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | Inject the OpenCode Go provider | on | Create and maintain the provider in the native AI settings page. |
-| Repair the provider config | — | Fill in missing required headers and endpoint fields. Existing values are never overwritten silently. |
+| Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if you deleted it (an existing entry on the same endpoint is adopted instead of duplicated). |
 | Refresh the model list | — | Re-fetch the provider's models through SiYuan's native model list API. |
 | Send `x-opencode-session` per conversation | on | Write each conversation's own id before the request leaves. |
 | Static session ID | empty | Used when the switch above is off; an installation-level id is generated when left empty. |
@@ -82,8 +84,12 @@ installation-level id is sent for everything.
 | Debug log | off | Prefixed diagnostics in the developer console. Never contains the API key. |
 
 The panel also shows a read-only self check: whether a provider hits the official endpoint, which
-required headers are missing or differ, whether the key is set, how many models exist, the current
-session id and the last usage result.
+required headers are missing or differ, whether the key is set (and whether it holds a non-ASCII
+character), how many models exist, the current session id and the last usage result.
+
+Deleting the provider in *Settings → AI* is respected: the plugin notices that the id it created is
+gone and stays quiet instead of putting the card back, until you press **Repair now** or switch
+**Inject the OpenCode Go provider** off and on again.
 
 ## Notes and limitations
 
@@ -94,6 +100,15 @@ session id and the last usage result.
 - It returns one aggregate percentage per window. OpenCode documents the limits per model, so the
   numbers can differ from the console page for a specific model.
 - Model entries use the bare model id (for example `deepseek-v4.1-flash`) as the upstream model name.
+- The API key must be printable ASCII. Whitespace, zero width characters and byte order marks are
+  stripped automatically (they are what makes `fetch` refuse a request with *String contains non
+  ISO-8859-1 code point*, and what makes the gateway answer *Invalid API key.*), but any other
+  non-ASCII character has to be fixed by pasting the key again; the settings self check points at the
+  exact position.
+- SiYuan's own **Test connection** button under *Settings → AI* shows *"the model is not in the
+  available list"* for **any** failure of its one-token probe whenever `/v1/models` answered (that
+  endpoint needs no key), so a rejected or missing key looks like a model problem there. The usage
+  line and the plugin's self check report what the endpoint actually said.
 - The `User-Agent` is injected through the provider's headers. If a future kernel release overwrites
   it, switch the policy or set the header manually in *Settings → AI → OpenCode Go → Headers*.
 - The plugin never writes your API key to a log, a message or the DOM; it only uses the key stored in
@@ -119,5 +134,5 @@ the browser is missing.
 
 ## License and funding
 
-MIT. If this plugin is useful to you, you can support the author at
-<https://afdian.com/a/wmy2981>.
+Released under the [MIT License](LICENSE). If this plugin is useful to you, you can support the
+author at <https://afdian.com/a/wmy2981>.
