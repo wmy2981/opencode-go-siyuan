@@ -1,5 +1,13 @@
 import type {Translate} from "./i18n";
-import {DEFAULT_PLUGIN_UA, SESSION_HEADER, USAGE_TIMEOUT_MS, usageURLFrom} from "./opencode";
+import {
+    DEFAULT_PLUGIN_UA,
+    findBlockingNonASCII,
+    findNonASCII,
+    sanitizeHeaderValue,
+    SESSION_HEADER,
+    USAGE_TIMEOUT_MS,
+    usageURLFrom,
+} from "./opencode";
 import type {
     LogFn,
     UsageFailure,
@@ -83,23 +91,34 @@ export class UsageClient {
         if (!target) {
             return this.fail("noProvider");
         }
-        if (!target.apiKey) {
+        // 粘贴来的 Key 常带空白/零宽字符，先净化；净化后仍非 ASCII 就必须明确报出来，
+        // 否则 fetch 只会抛一句看不懂的 "String contains non ISO-8859-1 code point"。
+        const apiKey = sanitizeHeaderValue(target.apiKey);
+        if (!apiKey) {
             return this.fail("noKey");
+        }
+        const invalid = findBlockingNonASCII(target.apiKey);
+        if (invalid) {
+            this.log("usage", "API key holds a non ASCII code point at index " + invalid.index);
+            return this.fail("badKey", undefined, "U+" + invalid.codePoint.toString(16).toUpperCase(),
+                this.t("usage.error.badKey", {index: String(invalid.index + 1)}));
         }
         const url = usageURLFrom(target.baseURL);
         if (!url) {
             return this.fail("noProvider");
         }
+        // 会话 ID 只用于上游归因，任何情况下都不能因为它让请求构造失败。
+        const session = sanitizeHeaderValue(this.sessionValue());
         const controller = new AbortController();
         const timer = window.setTimeout(() => controller.abort(), USAGE_TIMEOUT_MS);
         try {
             const response = await fetch(url, {
                 method: "GET",
                 headers: {
-                    Authorization: "Bearer " + target.apiKey,
+                    Authorization: "Bearer " + apiKey,
                     Accept: "application/json",
                     // 与其它实现一致：用量请求也带上会话标识，便于上游归因。
-                    [SESSION_HEADER]: this.sessionValue() || DEFAULT_PLUGIN_UA,
+                    [SESSION_HEADER]: session && !findNonASCII(session) ? session : DEFAULT_PLUGIN_UA,
                 },
                 signal: controller.signal,
             });
@@ -132,14 +151,14 @@ export class UsageClient {
         }
     }
 
-    private fail(kind: UsageFailureKind, status?: number, detail?: string): UsageResult {
+    private fail(kind: UsageFailureKind, status?: number, detail?: string, message?: string): UsageResult {
         const failure: UsageFailure = {
             kind,
             status,
             detail,
-            message: kind === "http"
+            message: message ?? (kind === "http"
                 ? this.t("usage.error.http", {status: typeof status === "number" ? status : 0})
-                : this.t("usage.error." + kind),
+                : this.t("usage.error." + kind)),
         };
         return {ok: false, failure};
     }

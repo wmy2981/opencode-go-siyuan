@@ -115,11 +115,25 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         const usage = host.usage();
         const rows: Array<[string, string]> = [];
         const join = (values: string[]): string => values.length > 0 ? values.join(", ") : t("check.none");
-        rows.push([t("check.provider"), check.exists ? check.displayName + " · " + check.baseURL : t("check.none")]);
+        const apiKeyLabel = (): string => {
+            if (check.apiKeyIssue === "nonAscii") {
+                return t("check.apiKeyNonAscii", {index: String(check.apiKeyIndex + 1)});
+            }
+            if (check.apiKeyDirty) {
+                return t("check.apiKeyDirty");
+            }
+            if (check.apiKeyIssue === "ok") {
+                return t("check.apiKeyOk");
+            }
+            return t("check.apiKeyMissing");
+        };
+        rows.push([t("check.provider"), check.exists
+            ? check.displayName + " · " + check.baseURL
+            : check.dismissed ? t("check.dismissed") : t("check.none")]);
         if (check.exists) {
             rows.push([t("check.missing"), join(check.missing)]);
             rows.push([t("check.conflict"), join(check.conflicts)]);
-            rows.push(["API Key", check.apiKeySet ? t("check.ok") : t("check.missing")]);
+            rows.push(["API Key", apiKeyLabel()]);
             rows.push(["Models", String(check.modelCount)]);
         }
         check.foreign.forEach((item) => {

@@ -24,11 +24,16 @@ export interface UsageSnapshot {
 export type UsageFailureKind =
     | "noProvider"
     | "noKey"
+    /** Key 里含非 ASCII 字符：JS 的 fetch 会直接拒绝构造请求，必须说清是哪一位。 */
+    | "badKey"
     | "auth"
     | "entitlement"
     | "http"
     | "network"
     | "parse";
+
+/** API Key 的可用性：正常 / 未填写 / 含非 ASCII 字符。 */
+export type ApiKeyIssue = "ok" | "missing" | "nonAscii";
 
 export interface UsageFailure {
     kind: UsageFailureKind;

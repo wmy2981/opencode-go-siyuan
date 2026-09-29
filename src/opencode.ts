@@ -27,6 +27,51 @@ export const PROVIDER_ICON_URL = "/plugins/" + PLUGIN_PACKAGE_NAME + "/provider-
 export const DEFAULT_PLUGIN_UA = "siyuan-opencode-go/0.1.0";
 export const USAGE_TIMEOUT_MS = 15000;
 
+/**
+ * 净化要放进 HTTP 头的取值。
+ *
+ * 粘贴 API Key 时很容易夹带空白、换行、零宽字符或 BOM（复制自网页/聊天工具时尤其常见）。
+ * 这些字符永远不可能是密钥的一部分，但它们会让 `fetch` 直接抛
+ * `String contains non ISO-8859-1 code point`，或者被内核原样发给上游、变成
+ * `Invalid API key.`。所以读取与写回时都先做这一步。
+ */
+export const sanitizeHeaderValue = (raw: string): string =>
+    typeof raw === "string" ? raw.replace(/[\s\u200b-\u200d\u2060\ufeff]/g, "") : "";
+
+/** 头部取值里第一个超出 ISO-8859-1 的字符；没有则返回 undefined。 */
+export const findNonASCII = (value: string): {index: number; codePoint: number} | undefined => {
+    for (let index = 0; index < value.length; index++) {
+        const codePoint = value.codePointAt(index) ?? 0;
+        if (codePoint > 0xff) {
+            return {index, codePoint};
+        }
+    }
+    return undefined;
+};
+
+/**
+ * 原始取值里第一个「净化也去不掉」的非 ASCII 字符。
+ *
+ * 下标按用户实际看到的原始字符串算，同时跳过空白/零宽这类点一下修复就能清理的杂质——
+ * 否则提示的位置会指在杂质上，用户照着改还是错的。
+ */
+export const findBlockingNonASCII = (raw: string): {index: number; codePoint: number} | undefined => {
+    if (typeof raw !== "string") {
+        return undefined;
+    }
+    for (let index = 0; index < raw.length; index++) {
+        const char = raw[index];
+        if (sanitizeHeaderValue(char) !== char) {
+            continue;
+        }
+        const codePoint = raw.codePointAt(index) ?? 0;
+        if (codePoint > 0xff) {
+            return {index, codePoint};
+        }
+    }
+    return undefined;
+};
+
 /** baseURL 是否指向 OpenCode Go 官方端点。只看 host 与路径前缀，忽略大小写和结尾斜杠。 */
 export const isOpenCodeGoBaseURL = (baseURL: string): boolean => {
     if (typeof baseURL !== "string" || !baseURL.trim()) {

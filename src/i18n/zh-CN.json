@@ -32,6 +32,7 @@
 
   "usage.error.noProvider": "未找到指向 OpenCode Go 官方端点的供应商",
   "usage.error.noKey": "该供应商尚未填写 API Key",
+  "usage.error.badKey": "API Key 第 {index} 位是非 ASCII 字符，请重新复制粘贴",
   "usage.error.auth": "API Key 无效或已过期",
   "usage.error.entitlement": "该 Key 没有 OpenCode Go 订阅",
   "usage.error.http": "接口返回 HTTP {status}",
@@ -39,9 +40,9 @@
   "usage.error.parse": "接口返回内容无法解析",
 
   "settings.injectProvider": "自动注入 OpenCode Go 供应商",
-  "settings.injectProviderTip": "在思源的「设置 - 人工智能」里自动创建并维护 OpenCode Go 供应商，可在原生页面正常编辑。",
+  "settings.injectProviderTip": "在思源的「设置 - 人工智能」里自动创建并维护 OpenCode Go 供应商，可在原生页面正常编辑。手动删除后插件不会自动重建，重新打开本开关或点「立即修复」才会重建。",
   "settings.repair": "修复供应商配置",
-  "settings.repairTip": "只补齐缺失的必需请求头与端点；已有但取值不同的字段不会自动覆盖。",
+  "settings.repairTip": "补齐缺失的必需请求头与端点、清理 API Key 里的空白/零宽字符；供应商被删掉时会重建，同端点已有条目则直接接管，不重复创建。",
   "settings.repairAction": "立即修复",
   "settings.repairDone": "供应商配置已修复",
   "settings.refreshModels": "刷新模型列表",
@@ -80,6 +81,11 @@
   "check.usage": "用量",
   "check.none": "无",
   "check.ok": "正常",
+  "check.dismissed": "已被手动删除（不会自动重建，点「立即修复」可重建）",
+  "check.apiKeyOk": "正常",
+  "check.apiKeyMissing": "未填写",
+  "check.apiKeyDirty": "含空白/零宽字符（会造成对话被拒，点「立即修复」清理）",
+  "check.apiKeyNonAscii": "第 {index} 位是非 ASCII 字符（点「立即修复」可清理空白/零宽字符，其余需重新粘贴）",
 
   "message.saved": "设置已保存",
   "message.saveFailed": "设置保存失败",

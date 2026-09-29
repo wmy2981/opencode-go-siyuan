@@ -32,6 +32,7 @@
 
   "usage.error.noProvider": "No provider points at the OpenCode Go endpoint",
   "usage.error.noKey": "The provider has no API key yet",
+  "usage.error.badKey": "Character {index} of the API key is not ASCII; please paste it again",
   "usage.error.auth": "The API key is invalid or expired",
   "usage.error.entitlement": "This key has no OpenCode Go subscription",
   "usage.error.http": "The endpoint returned HTTP {status}",
@@ -39,9 +40,9 @@
   "usage.error.parse": "The response could not be parsed",
 
   "settings.injectProvider": "Inject the OpenCode Go provider",
-  "settings.injectProviderTip": "Create and maintain the OpenCode Go provider in SiYuan's own AI settings page, where it stays fully editable.",
+  "settings.injectProviderTip": "Create and maintain the OpenCode Go provider in SiYuan's own AI settings page, where it stays fully editable. Once you delete it by hand the plugin leaves it alone; rebuild it by switching this back on or using Repair now.",
   "settings.repair": "Repair the provider config",
-  "settings.repairTip": "Fills in missing required headers and endpoint fields only; existing values are never overwritten silently.",
+  "settings.repairTip": "Fills in missing required headers and endpoint fields and strips blanks/zero width characters from the API key; a deleted provider is rebuilt, and a single existing entry on the same endpoint is adopted instead of duplicated.",
   "settings.repairAction": "Repair now",
   "settings.repairDone": "The provider config has been repaired",
   "settings.refreshModels": "Refresh the model list",
@@ -80,6 +81,11 @@
   "check.usage": "Usage",
   "check.none": "none",
   "check.ok": "ok",
+  "check.dismissed": "deleted by hand (not recreated automatically; use Repair now to rebuild)",
+  "check.apiKeyOk": "ok",
+  "check.apiKeyMissing": "not filled in",
+  "check.apiKeyDirty": "holds blanks/zero width characters (chat will be rejected; Repair now strips them)",
+  "check.apiKeyNonAscii": "character {index} is not ASCII (Repair now strips blanks and zero width characters, the rest has to be pasted again)",
 
   "message.saved": "Settings saved",
   "message.saveFailed": "Saving the settings failed",
