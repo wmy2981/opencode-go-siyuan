@@ -1,3 +1,4 @@
+import {fetchSyncPost} from "siyuan";
 import type {Translate} from "./i18n";
 import {
     DEFAULT_PLUGIN_UA,
@@ -76,6 +77,18 @@ export const errorDetailOf = (payload: unknown): string => {
     return typeof payload.msg === "string" ? payload.msg : "";
 };
 
+/** 内核转发回来的是字符串 body，自己解一次 JSON。 */
+const parseBody = (body: unknown): unknown => {
+    if (typeof body !== "string" || !body.trim()) {
+        return undefined;
+    }
+    try {
+        return JSON.parse(body);
+    } catch {
+        return undefined;
+    }
+};
+
 /** 用量查询客户端；key 只在本进程内存里使用，绝不写日志。 */
 export class UsageClient {
     constructor(
@@ -92,7 +105,7 @@ export class UsageClient {
             return this.fail("noProvider");
         }
         // 粘贴来的 Key 常带空白/零宽字符，先净化；净化后仍非 ASCII 就必须明确报出来，
-        // 否则 fetch 只会抛一句看不懂的 "String contains non ISO-8859-1 code point"。
+        // 否则请求只会带着一串乱码被上游拒掉。
         const apiKey = sanitizeHeaderValue(target.apiKey);
         if (!apiKey) {
             return this.fail("noKey");
@@ -109,45 +122,49 @@ export class UsageClient {
         }
         // 会话 ID 只用于上游归因，任何情况下都不能因为它让请求构造失败。
         const session = sanitizeHeaderValue(this.sessionValue());
-        const controller = new AbortController();
-        const timer = window.setTimeout(() => controller.abort(), USAGE_TIMEOUT_MS);
+        // 必须走内核的原生转发接口，不能在渲染进程里直连：
+        // `GET /v1/usage` 对 OPTIONS 预检直接回 404 且不带任何 CORS 响应头，而带上
+        // `Authorization` 的跨域请求一定是预检请求，浏览器于是把它判成跨域失败，
+        // 前端只能看到一句 `TypeError: Failed to fetch`。内核是从服务端发出去的，
+        // 不受 CORS 约束（对话本来就跑在这条路上，所以对话一直是好的）。
         try {
-            const response = await fetch(url, {
+            const response = await fetchSyncPost("/api/network/forwardProxy", {
+                url,
                 method: "GET",
-                headers: {
-                    Authorization: "Bearer " + apiKey,
-                    Accept: "application/json",
+                timeout: USAGE_TIMEOUT_MS,
+                // 没有请求体：显式声明成 text，免得内核拿空 JSON 载荷去构造 body。
+                payloadEncoding: "text",
+                headers: [
+                    {Authorization: "Bearer " + apiKey},
+                    {Accept: "application/json"},
                     // 与其它实现一致：用量请求也带上会话标识，便于上游归因。
-                    [SESSION_HEADER]: session && !findNonASCII(session) ? session : DEFAULT_PLUGIN_UA,
-                },
-                signal: controller.signal,
+                    {[SESSION_HEADER]: session && !findNonASCII(session) ? session : DEFAULT_PLUGIN_UA},
+                ],
             });
-            let payload: unknown;
-            try {
-                payload = await response.json();
-            } catch {
-                payload = undefined;
+            if (response.code !== 0) {
+                this.log("usage", "forward proxy refused the request: " + response.msg);
+                return this.fail("network", undefined, response.msg || String(response.code));
             }
-            if (!response.ok) {
-                const kind: UsageFailureKind = response.status === 401
+            const status = typeof response.data.status === "number" ? response.data.status : 0;
+            const payload = parseBody(response.data.body);
+            if (status !== 200) {
+                const kind: UsageFailureKind = status === 401
                     ? "auth"
-                    : response.status === 403
+                    : status === 403
                         ? "entitlement"
                         : "http";
-                this.log("usage", "request failed with HTTP " + response.status);
-                return this.fail(kind, response.status, errorDetailOf(payload));
+                this.log("usage", "request failed with HTTP " + status);
+                return this.fail(kind, status, errorDetailOf(payload));
             }
             const windows = parseUsage(payload);
             if (!windows) {
                 this.log("usage", "response shape is not usable");
-                return this.fail("parse", response.status, errorDetailOf(payload));
+                return this.fail("parse", status, errorDetailOf(payload));
             }
             return {ok: true, snapshot: {fetchedAt: Date.now(), windows}};
         } catch (error) {
             this.log("usage", "network failure: " + String(error));
             return this.fail("network", undefined, String(error));
-        } finally {
-            window.clearTimeout(timer);
         }
     }
 
