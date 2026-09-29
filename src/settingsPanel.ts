@@ -9,9 +9,14 @@ export interface SettingsPanelHost {
     t: Translate;
     settings: () => PluginSettings;
     save: (draft: PluginSettings) => Promise<void>;
+    /** 只读自检，不改动任何配置。 */
     inspect: () => ProviderCheck;
+    /** 显式创建供应商：已存在同端点条目时直接沿用，绝不重复创建。 */
+    create: () => Promise<ProviderCheck>;
+    /** 显式修复：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
     repair: () => Promise<ProviderCheck>;
-    refreshModels: () => Promise<number>;
+    /** 打开思源原生的「设置 - 人工智能」并定位到这个供应商。 */
+    openProviderSetting: () => Promise<void>;
     refreshUsage: () => Promise<UsageResult | null>;
     sessionValue: () => string;
     usage: () => UsageResult | null;
@@ -21,19 +26,28 @@ export interface SettingsPanelHost {
 
 export interface SettingsPanel {
     setting: Setting;
-    /** 重新渲染只读自检区（例如用量刷新之后）。 */
+    /** 重新渲染各步骤状态与只读自检区（例如用量刷新之后）。 */
     refreshInfo: () => void;
 }
 
 /**
  * 插件的设置面板：用思源官方的 `Setting` 类渲染，控件全部走 `b3-*` 原生类名，
- * 因此外观与原生设置页一致；开关与参数走「草稿 + 保存」，动作类按钮立即生效。
+ * 因此外观与原生设置页一致。
+ *
+ * 面板分两段：上面是「创建 → 填凭据 → 检查」的顺序指引，所有会改动思源配置的动作
+ * 都必须由用户点按钮触发；下面是纯设置项。开关与参数走「草稿 + 保存」，动作类按钮立即生效。
  */
 export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
     const t = host.t;
     const draft: PluginSettings = {...host.settings()};
-    let infoElement: HTMLElement | null = null;
-    let renderInfo: () => void = () => undefined;
+    /** 每次刷新都要重算的界面状态（步骤状态、按钮标签与可用性）。 */
+    const refreshers: Array<() => void> = [];
+    let checkElement: HTMLElement | null = null;
+
+    /** 登记一个「刷新时要重算」的回调；面板构建完与每次动作后都会跑一遍。 */
+    const refreshLater = (sync: () => void): void => {
+        refreshers.push(sync);
+    };
 
     const switchElement = (checked: boolean, onChange: (checked: boolean) => void): HTMLElement => {
         const input = document.createElement("input");
@@ -63,6 +77,49 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
                 });
         });
         return button;
+    };
+
+    /**
+     * 指引里的步骤按钮：点击期间禁用，结束后整体重算一遍界面状态 —— 不只是这个按钮的
+     * 标签与可用性，还包括其它步骤的状态文案与下面的自检结果（例如刚创建完供应商，
+     * 第 2 步就该从「请先完成第 1 步」变成 API Key 的状态）。
+     */
+    const actionButton = (onClick: () => Promise<void>,
+                          sync: (button: HTMLButtonElement) => void): HTMLButtonElement => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "b3-button b3-button--outline";
+        button.addEventListener("click", () => {
+            button.disabled = true;
+            void onClick()
+                .catch((error) => {
+                    host.log("settings", "action failed: " + String(error));
+                    showMessage(t("message.saveFailed"), 4000, "error");
+                })
+                .finally(() => {
+                    if (button.isConnected) {
+                        renderInfo();
+                    }
+                });
+        });
+        refreshLater(() => sync(button));
+        return button;
+    };
+
+    const statusElement = (text: () => string): HTMLElement => {
+        const span = document.createElement("span");
+        span.className = "opencode-go-step__status";
+        refreshLater(() => {
+            span.textContent = text();
+        });
+        return span;
+    };
+
+    const stepElement = (block: boolean, ...children: HTMLElement[]): HTMLElement => {
+        const container = document.createElement("div");
+        container.className = "opencode-go-step" + (block ? " opencode-go-step--block" : "");
+        container.append(...children);
+        return container;
     };
 
     const textareaElement = (value: string, onChange: (value: string) => void): HTMLElement => {
@@ -110,31 +167,35 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         return select;
     };
 
-    const fillInfo = (container: HTMLElement): void => {
+    /** API Key 的可用性文案，指引第 2 步与自检区共用。 */
+    const apiKeyLabel = (check: ProviderCheck): string => {
+        if (check.apiKeyIssue === "nonAscii") {
+            return t("check.apiKeyNonAscii", {index: String(check.apiKeyIndex + 1)});
+        }
+        if (check.apiKeyDirty) {
+            return t("check.apiKeyDirty");
+        }
+        if (check.apiKeyIssue === "ok") {
+            return t("check.apiKeyOk");
+        }
+        return t("check.apiKeyMissing");
+    };
+
+    const fillCheck = (container: HTMLElement): void => {
         const check = host.inspect();
         const usage = host.usage();
         const rows: Array<[string, string]> = [];
         const join = (values: string[]): string => values.length > 0 ? values.join(", ") : t("check.none");
-        const apiKeyLabel = (): string => {
-            if (check.apiKeyIssue === "nonAscii") {
-                return t("check.apiKeyNonAscii", {index: String(check.apiKeyIndex + 1)});
-            }
-            if (check.apiKeyDirty) {
-                return t("check.apiKeyDirty");
-            }
-            if (check.apiKeyIssue === "ok") {
-                return t("check.apiKeyOk");
-            }
-            return t("check.apiKeyMissing");
-        };
         rows.push([t("check.provider"), check.exists
             ? check.displayName + " · " + check.baseURL
             : check.dismissed ? t("check.dismissed") : t("check.none")]);
         if (check.exists) {
             rows.push([t("check.missing"), join(check.missing)]);
             rows.push([t("check.conflict"), join(check.conflicts)]);
-            rows.push(["API Key", apiKeyLabel()]);
-            rows.push(["Models", String(check.modelCount)]);
+            rows.push(["API Key", apiKeyLabel(check)]);
+            rows.push([t("check.models"), check.modelCount > 0
+                ? String(check.modelCount)
+                : t("check.modelsEmpty")]);
         }
         check.foreign.forEach((item) => {
             const parts: string[] = [];
@@ -167,11 +228,64 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }));
     };
 
-    renderInfo = (): void => {
-        if (infoElement) {
-            fillInfo(infoElement);
+    function renderInfo(): void {
+        refreshers.forEach((sync) => sync());
+        if (checkElement) {
+            fillCheck(checkElement);
         }
-    };
+    }
+
+    // ---- 顺序指引 ---------------------------------------------------------
+
+    const step1Button = actionButton(
+        async () => {
+            const check = await host.create();
+            host.log("settings", "create requested; exists=" + check.exists);
+            showMessage(check.exists ? t("guide.step1.done") : t("guide.step1.failed"),
+                4000, check.exists ? "info" : "error");
+        },
+        (button) => {
+            const exists = host.inspect().exists;
+            button.textContent = exists ? t("guide.step1.existed") : t("guide.step1.action");
+            button.disabled = exists;
+        },
+    );
+    const step1 = stepElement(false, step1Button, statusElement(() => {
+        const check = host.inspect();
+        if (check.exists) {
+            return t("guide.step1.statusReady") + " · " + check.baseURL;
+        }
+        return check.dismissed ? t("guide.step1.statusDeleted") : t("guide.step1.statusMissing");
+    }));
+
+    const step2Button = actionButton(
+        async () => {
+            await host.openProviderSetting();
+        },
+        (button) => {
+            button.textContent = t("guide.step2.action");
+            button.disabled = !host.inspect().exists;
+        },
+    );
+    const step2 = stepElement(false, step2Button, statusElement(() => {
+        const check = host.inspect();
+        return check.exists ? apiKeyLabel(check) : t("guide.step2.statusMissing");
+    }));
+
+    const step3Button = actionButton(
+        async () => {
+            await host.refreshUsage();
+            showMessage(t("guide.step3.done"));
+        },
+        (button) => {
+            button.textContent = t("guide.step3.action");
+        },
+    );
+    checkElement = document.createElement("div");
+    checkElement.className = "opencode-go-check";
+    const step3 = stepElement(true, step3Button, checkElement);
+
+    // ---- 设置 -------------------------------------------------------------
 
     const setting = new Setting({
         width: host.isMobile() ? "92vw" : "760px",
@@ -188,12 +302,28 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
     });
 
     setting.addItem({
-        title: t("settings.injectProvider"),
-        description: t("settings.injectProviderTip"),
-        createActionElement: () => switchElement(draft.injectProvider, (checked) => {
-            draft.injectProvider = checked;
-        }),
+        title: t("guide.title"),
+        description: t("guide.tip"),
     });
+    setting.addItem({
+        title: t("guide.step1.title"),
+        description: t("guide.step1.desc"),
+        direction: "row",
+        createActionElement: () => step1,
+    });
+    setting.addItem({
+        title: t("guide.step2.title"),
+        description: t("guide.step2.desc"),
+        direction: "row",
+        createActionElement: () => step2,
+    });
+    setting.addItem({
+        title: t("guide.step3.title"),
+        description: t("guide.step3.desc"),
+        direction: "row",
+        createActionElement: () => step3,
+    });
+
     setting.addItem({
         title: t("settings.repair"),
         description: t("settings.repairTip"),
@@ -204,18 +334,8 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }),
     });
     setting.addItem({
-        title: t("settings.refreshModels"),
-        description: t("settings.refreshModelsTip"),
-        createActionElement: () => buttonElement(t("settings.refreshModelsAction"), async () => {
-            const count = await host.refreshModels();
-            renderInfo();
-            showMessage(count > 0 ? t("settings.refreshModelsDone", {count}) : t("settings.refreshModelsEmpty"),
-                4000, count > 0 ? "info" : "error");
-        }),
-    });
-    setting.addItem({
-        title: t("settings.dynamicSession"),
-        description: t("settings.dynamicSessionTip"),
+        title: t("settings.headerStrategy"),
+        description: t("settings.headerStrategyTip"),
         createActionElement: () => switchElement(draft.dynamicSession, (checked) => {
             draft.dynamicSession = checked;
         }),
@@ -260,32 +380,15 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }),
     });
     setting.addItem({
-        title: t("settings.refreshNow"),
-        description: t("settings.refreshNowTip"),
-        createActionElement: () => buttonElement(t("settings.refreshNowAction"), async () => {
-            await host.refreshUsage();
-            renderInfo();
-        }),
-    });
-    setting.addItem({
         title: t("settings.debugLog"),
         description: t("settings.debugLogTip"),
         createActionElement: () => switchElement(draft.debugLog, (checked) => {
             draft.debugLog = checked;
         }),
     });
-    setting.addItem({
-        title: t("settings.check"),
-        description: t("settings.checkTip"),
-        direction: "row",
-        createActionElement: () => {
-            const container = document.createElement("div");
-            container.className = "opencode-go-check";
-            infoElement = container;
-            fillInfo(container);
-            return container;
-        },
-    });
+
+    // 元素在面板打开前就建好了，这里先把状态算一遍，避免打开瞬间闪一下默认文案。
+    renderInfo();
 
     return {setting, refreshInfo: renderInfo};
 };

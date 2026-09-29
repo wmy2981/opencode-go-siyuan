@@ -58,16 +58,21 @@ export interface UsageTarget {
     displayName: string;
     baseURL: string;
     apiKey: string;
-    /** 当前选中的模型 id，仅用于展示与自检。 */
+    /** 当前选中的模型 id —— 思源自己分配的那个，只在供应商模型列表里用来定位条目。 */
     modelId: string;
+    /** 该模型真正发给上游的 name；界面上展示的应该是它，而不是思源分配的 id。 */
+    modelName: string;
 }
 
 export type UserAgentMode = "kernel" | "plugin" | "custom";
 
 export interface PluginSettings {
-    /** 自动在思源原生 AI 设置页创建并维护 OpenCode Go 供应商。 */
-    injectProvider: boolean;
-    /** 按会话写入变量，让 `x-opencode-session` 每段对话各不相同。 */
+    /**
+     * 按会话写入变量，让 `x-opencode-session` 每段对话各不相同。
+     *
+     * 供应商只由用户在设置面板里显式创建（见「指引」），运行时不再自动注入，
+     * 所以这里没有「自动注入」开关：那是本插件唯一会改动宿主机配置的地方。
+     */
     dynamicSession: boolean;
     /** 关闭按会话发送时使用的固定 ID；留空则自动生成。 */
     staticSessionId: string;

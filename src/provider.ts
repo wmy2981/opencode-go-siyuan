@@ -1,5 +1,5 @@
 import {fetchSyncPost} from "siyuan";
-import type {SetAIRequestInput, SettingAI, SettingModel, SettingProvider, SettingProviderInput} from "siyuan";
+import type {SetAIRequestInput, SettingAI, SettingProvider} from "siyuan";
 import {
     DEFAULT_PLUGIN_UA,
     findBlockingNonASCII,
@@ -19,8 +19,9 @@ const DEFAULT_REQUEST_TIMEOUT = 120;
 
 /** 供应商自检结果：设置页只读自检区与一键修复共用。 */
 export interface ProviderCheck {
-    /** 插件自己维护的供应商是否存在。 */
+    /** 该端点上是否已经有可管理的供应商条目（插件建的，或已存在的同类条目）。 */
     exists: boolean;
+    /** 该条目的 id；为空表示这个端点上还没有任何条目。跳转与图标补丁都用它。 */
     providerId: string;
     displayName: string;
     baseURL: string;
@@ -39,8 +40,8 @@ export interface ProviderCheck {
     /** 取值与插件期望不同的请求头（不会自动覆盖）。 */
     conflicts: string[];
     /**
-     * 插件曾经创建过供应商（`injectedProviderId` 有值）但现在已经不存在：
-     * 说明用户自己删掉了。此时后台不再自动重建，只有显式点「立即修复」才会。
+     * 记录过供应商 id、但这个端点上已经一条都没有了：说明用户自己删掉了。
+     * 插件不会因此自动重建，只用于把提示写得更明白一点。
      */
     dismissed: boolean;
     /** 同样命中官方端点、但不是插件维护的供应商。 */
@@ -88,38 +89,6 @@ const newProviderConfig = (headers: Record<string, string>): SettingProvider => 
     models: [],
 });
 
-/**
- * 把新拉到的模型并进既有列表，语义与思源原生「获取模型列表」一致：只增不减。
- * 已有条目保留自己的 `id`、`displayName` 与启用状态——内核里 `agent.modelId` /
- * `editing.modelId` 引用的是模型 `id`，每次刷新都换 id 会把用户选好的模型悄悄重置掉；
- * 只按名字补上新的上下文长度。
- */
-const mergeModels = (previous: Array<SettingModel | null> | null | undefined,
-                     fetched: SettingModel[]): SettingModel[] => {
-    const merged: SettingModel[] = (previous ?? [])
-        .filter((model): model is SettingModel => !!model?.name);
-    fetched.forEach((model) => {
-        const index = merged.findIndex((item) => item.name === model.name);
-        const contextLength = typeof model.contextLength === "number" && model.contextLength > 0
-            ? model.contextLength
-            : 0;
-        if (index < 0) {
-            merged.push({
-                id: newNodeID(),
-                enabled: true,
-                name: model.name,
-                displayName: "",
-                ...(contextLength > 0 ? {contextLength} : {}),
-            });
-            return;
-        }
-        if (contextLength > 0) {
-            merged[index] = {...merged[index], contextLength};
-        }
-    });
-    return merged;
-};
-
 /** 当前实际生效的模型 id：面板里的选择器优先，回落到 AI 配置。 */
 export const currentModelId = (): string => {
     const domId = document.querySelector<HTMLElement>(AGENT_MODEL_PICKER_SELECTOR)?.dataset.modelId;
@@ -141,14 +110,51 @@ export const userAgentOf = (settings: PluginSettings): string => {
 };
 
 /**
+ * 当前选中的模型真正发给上游的 name（思源把上游模型名存在 `name`，`id` 只是本地标识）。
+ * 找不到归属时返回空串，调用方自行决定退回什么。
+ */
+const upstreamModelName = (modelId: string): string => {
+    if (!modelId) {
+        return "";
+    }
+    const ai = readAI();
+    for (const provider of ai ? listProviders(ai) : []) {
+        const model = (provider.models ?? []).find((item) => item?.id === modelId);
+        const name = typeof model?.name === "string" ? model.name.trim() : "";
+        if (name) {
+            return name;
+        }
+    }
+    return "";
+};
+
+/**
+ * 官方端点上的全部供应商卡片，供图标补丁使用。
+ *
+ * 刻意按 baseURL 而不是「插件记录过的 id」来解析：用户改名、从别的设备同步过来、
+ * 或者干脆自己手建一个同端点供应商时，记录的 id 都可能对不上，而图标属于品牌本身，
+ * 只要端点是我们认识的那一个就应当贴上去。这也是「图标有时不显示」的根因所在。
+ */
+export const officialProviderCards = (): Array<{providerId: string; displayName: string}> => {
+    const ai = readAI();
+    return (ai ? listProviders(ai) : [])
+        .filter((provider) => isOpenCodeGoBaseURL(provider.baseURL))
+        .map((provider) => ({
+            providerId: provider.id,
+            displayName: provider.displayName || PROVIDER_DISPLAY_NAME,
+        }));
+};
+
+/**
  * 供应商管理器：负责在思源原生 AI 设置页里创建与维护 OpenCode Go 供应商。
  *
  * 原则（与需求约定一致）：
- * - 只补缺失字段，不覆盖用户自己改过的取值；要覆盖必须由用户显式点「一键修复」。
- * - 用户手动删除后就不要再自动创建，否则「删掉又冒出来」，只有显式修复才重建。
+ * - 只在用户显式点「创建供应商」或「立即修复」时动手，运行时绝不自动注入。
+ * - 只补缺失字段，不覆盖用户自己改过的取值；要覆盖必须由用户显式点「立即修复」。
+ * - 绝不碰模型列表：模型由用户在原生供应商页自己添加，插件只统计数量用于自检。
  * - 写回前必须重新读取实时配置，绝不拿旧快照整体覆盖——那会抹掉用户刚粘贴的 API Key。
  * - 写入走内核原生的 `/api/setting/setAI`，因此该供应商在原生页面里是一个普通条目，
- *   可以被原生地改名、改 key、删模型、删除。
+ *   可以被原生地改名、改 key、改模型、删除。
  */
 export class ProviderManager {
     constructor(
@@ -175,30 +181,33 @@ export class ProviderManager {
         const settings = this.getSettings();
         const state = this.readState(settings);
         const owned = state.owned;
+        // 本插件在这个端点上实际管理的条目：插件自己建的优先，否则沿用端点上已存在的那个。
+        // 设置面板的指引与跳转都以它为准，因此「已存在」不等于「插件建过」。
+        const card = owned ?? state.matches[0];
         const expected = this.expectedHeaders();
-        const rawApiKey = owned?.apiKey ?? "";
+        const rawApiKey = card?.apiKey ?? "";
         const apiKey = sanitizeHeaderValue(rawApiKey);
         // 位置按用户实际看到的原始取值算，并跳过修复就能清掉的杂质。
         const invalid = findBlockingNonASCII(rawApiKey);
         const foreign = state.matches
-            .filter((provider) => provider !== owned)
+            .filter((provider) => provider !== card)
             .map((provider) => ({
                 providerId: provider.id,
                 displayName: provider.displayName || provider.id,
                 ...this.diffHeaders(provider, expected),
             }));
         return {
-            exists: !!owned,
-            providerId: owned?.id ?? "",
-            displayName: owned?.displayName || (owned ? PROVIDER_DISPLAY_NAME : ""),
-            baseURL: owned?.baseURL ?? "",
+            exists: !!card,
+            providerId: card?.id ?? "",
+            displayName: card?.displayName || (card ? PROVIDER_DISPLAY_NAME : ""),
+            baseURL: card?.baseURL ?? "",
             apiKeySet: apiKey !== "",
             apiKeyIssue: apiKey === "" ? "missing" : invalid ? "nonAscii" : "ok",
             apiKeyIndex: invalid ? invalid.index : -1,
             apiKeyDirty: rawApiKey !== apiKey,
-            modelCount: (owned?.models ?? []).filter(Boolean).length,
-            ...this.diffHeaders(owned, expected),
-            dismissed: !owned && !!settings.injectedProviderId,
+            modelCount: (card?.models ?? []).filter(Boolean).length,
+            ...this.diffHeaders(card, expected),
+            dismissed: !card && !!settings.injectedProviderId,
             foreign,
         };
     }
@@ -217,6 +226,7 @@ export class ProviderManager {
             baseURL: provider.baseURL,
             apiKey: sanitizeHeaderValue(provider.apiKey ?? ""),
             modelId,
+            modelName: upstreamModelName(modelId) || modelId,
         });
         const withKey = matches.filter((provider) =>
             provider.enabled && sanitizeHeaderValue(provider.apiKey ?? "") !== "");
@@ -246,60 +256,30 @@ export class ProviderManager {
     }
 
     /**
-     * 后台保证（不覆盖、不重建已删除的供应商）：只补齐缺失字段。
-     * 用户手动删掉之后这里不会再创建，避免「删了又回来」。
+     * 用户显式点「创建供应商」：不存在就创建（已有同端点条目则直接沿用，绝不出重复条目），
+     * 只补缺失字段，不覆盖用户已经改过的取值。
      */
-    async ensure(): Promise<ProviderCheck> {
+    async create(): Promise<ProviderCheck> {
         return this.apply(false);
     }
 
-    /** 用户显式点击「一键修复」：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
+    /** 用户显式点「立即修复」：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
     async repair(): Promise<ProviderCheck> {
         return this.apply(true);
     }
 
-    /** 通过思源原生的模型列表接口刷新模型；返回模型数量。 */
-    async refreshModels(): Promise<number> {
-        const state = this.readState(this.getSettings());
-        const provider = state.owned || state.matches[0];
-        if (!provider) {
-            return 0;
-        }
-        const models = await this.fetchModels(provider);
-        if (!models || models.length === 0) {
-            return 0;
-        }
-        await this.commit({
-            targetId: provider.id,
-            creating: false,
-            force: false,
-            models,
-            expected: this.expectedHeaders(),
-        });
-        return models.length;
-    }
-
     /**
-     * 注入流程分两段，避免「读旧快照 → 网络等待 → 整体写回」把用户的改动抹掉：
-     * 1. 只读地判断该做什么，必要时先 await 拉模型（此期间不持有可写引用）；
+     * 注入流程分两段，避免「读旧快照 → 写回」之间夹进异步操作把用户的改动抹掉：
+     * 1. 只读地判断该做什么；
      * 2. 重新读取实时配置，同步地改完，紧接着写回（读与写之间不再有 await）。
      */
     private async apply(force: boolean): Promise<ProviderCheck> {
-        const settings = this.getSettings();
-        const state = this.readState(settings);
+        const state = this.readState(this.getSettings());
         let provider = state.owned;
         let creating = false;
         if (!provider) {
-            // 从没注入过（首次安装）时按开关自动创建；一旦记过 id 就说明用户手动删了它，
-            // 后台不再擅自重建，只有显式修复或重新打开开关才会。
-            const mayCreate = force || (!settings.injectedProviderId && settings.injectProvider);
-            if (!mayCreate) {
-                this.log("provider", settings.injectedProviderId
-                    ? "the provider was deleted by the user; not recreating it"
-                    : "no OpenCode Go provider is present");
-                return this.inspect();
-            }
-            // 官方端点上已经有条目（用户自己建的或历史遗留）就直接接管，绝不插重复条目。
+            // 官方端点上已经有条目（用户自己建的、或从别的设备同步过来的）就直接接管，
+            // 绝不插重复条目。
             provider = state.matches[0];
             if (!provider) {
                 creating = true;
@@ -307,16 +287,10 @@ export class ProviderManager {
                 this.log("provider", "adopted the existing OpenCode Go provider: " + provider.id);
             }
         }
-        // 新建时必须先拿到模型列表；已有条目则只在模型为空时补拉。
-        const needModels = creating || (provider?.models ?? []).filter(Boolean).length === 0;
-        const models = needModels
-            ? await this.fetchModels(provider ?? newProviderConfig(this.expectedHeaders()))
-            : undefined;
         await this.commit({
             targetId: creating ? "" : (provider?.id ?? ""),
             creating,
             force,
-            models,
             expected: this.expectedHeaders(),
         });
         return this.inspect();
@@ -327,7 +301,6 @@ export class ProviderManager {
         targetId: string;
         creating: boolean;
         force: boolean;
-        models?: SettingModel[];
         expected: Record<string, string>;
     }): Promise<void> {
         const settings = this.getSettings();
@@ -382,10 +355,6 @@ export class ProviderManager {
                 changed = true;
             }
         }
-        if (options.models && options.models.length > 0) {
-            provider.models = mergeModels(provider.models, options.models);
-            changed = true;
-        }
         const providerId = provider.id;
         if (changed) {
             await this.writeAI(ai);
@@ -438,49 +407,6 @@ export class ProviderManager {
             return undefined;
         }
         return matches.find((provider) => provider.displayName === PROVIDER_DISPLAY_NAME);
-    }
-
-    /**
-     * 调内核原生的 `/api/ai/listModels`。
-     * 注意返回结构是「模型名字符串数组 + contextLengths 映射」，与思源自带的
-     * 「获取模型列表」按钮完全一致（`aiProviderUi.ts` 里也是这么解析的）。
-     */
-    private async fetchModels(provider: SettingProvider): Promise<SettingModel[] | undefined> {
-        try {
-            const response = await fetchSyncPost("/api/ai/listModels", {
-                providerConfig: provider as unknown as SettingProviderInput,
-            });
-            if (response.code !== 0) {
-                this.log("provider", "list models failed: " + response.msg);
-                return undefined;
-            }
-            const data = response.data as {
-                models?: Array<string | null> | null;
-                contextLengths?: Record<string, number> | null;
-                msg?: string;
-            };
-            const names = (Array.isArray(data.models) ? data.models : [])
-                .filter((name): name is string => typeof name === "string" && name.trim() !== "")
-                .map((name) => name.trim());
-            if (names.length === 0) {
-                this.log("provider", "list models returned nothing: " + (data.msg || ""));
-                return undefined;
-            }
-            const lengths = data.contextLengths && typeof data.contextLengths === "object" ? data.contextLengths : {};
-            return names.map((name) => {
-                const model: SettingModel = {id: "", enabled: true, name, displayName: ""};
-                const byName = lengths[name];
-                const byLower = lengths[name.toLowerCase()];
-                const contextLength = typeof byName === "number" ? byName : byLower;
-                if (typeof contextLength === "number" && Number.isSafeInteger(contextLength) && contextLength > 0) {
-                    model.contextLength = contextLength;
-                }
-                return model;
-            });
-        } catch (error) {
-            this.log("provider", "list models threw: " + String(error));
-            return undefined;
-        }
     }
 
     private async writeAI(ai: SettingAI): Promise<void> {

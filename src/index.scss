@@ -134,6 +134,26 @@
   }
 }
 
+// 设置面板里的顺序指引：每一步就是「按钮 + 状态」，第三步下面再挂自检结果。
+.opencode-go-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &--block {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  &__status {
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+    line-height: 18px;
+    opacity: 0.7;
+    word-break: break-all;
+  }
+}
+
 // 设置面板里的只读自检区。
 .opencode-go-check {
   display: flex;

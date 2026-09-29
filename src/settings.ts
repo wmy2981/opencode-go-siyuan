@@ -8,7 +8,6 @@ export const MAX_REFRESH_SECONDS = 3600;
 export const DEFAULT_REFRESH_SECONDS = 300;
 
 export const DEFAULT_SETTINGS: PluginSettings = {
-    injectProvider: true,
     dynamicSession: true,
     staticSessionId: "",
     userAgentMode: "kernel",
@@ -27,7 +26,6 @@ export const normalizeSettings = (raw: unknown): PluginSettings => {
     const source = (raw && typeof raw === "object" ? raw : {}) as Partial<PluginSettings>;
     const interval = Number(source.refreshIntervalSeconds);
     return {
-        injectProvider: source.injectProvider !== false,
         dynamicSession: source.dynamicSession !== false,
         staticSessionId: typeof source.staticSessionId === "string" ? source.staticSessionId.trim() : "",
         userAgentMode: isUserAgentMode(source.userAgentMode) ? source.userAgentMode : DEFAULT_SETTINGS.userAgentMode,
