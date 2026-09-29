@@ -24,7 +24,7 @@ export const PLUGIN_PACKAGE_NAME = "opencode-go-siyuan";
 /** 思源把插件目录托管在 /plugins/<name>/ 下，供应商卡片用这个地址加载官方图标。 */
 export const PROVIDER_ICON_URL = "/plugins/" + PLUGIN_PACKAGE_NAME + "/provider-icon.svg";
 
-export const DEFAULT_PLUGIN_UA = "siyuan-opencode-go/0.2.0";
+export const DEFAULT_PLUGIN_UA = "siyuan-opencode-go/1.0.0";
 export const USAGE_TIMEOUT_MS = 15000;
 
 /**

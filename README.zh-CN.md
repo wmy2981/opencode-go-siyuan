@@ -57,7 +57,7 @@
 ```json
 "headers": {
   "x-opencode-session": "{{vars.OPENCODE_GO_SESSION}}",
-  "User-Agent": "siyuan-opencode-go/0.2.0"
+  "User-Agent": "siyuan-opencode-go/1.0.0"
 }
 ```
 
