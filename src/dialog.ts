@@ -44,6 +44,11 @@ export class UsageDialog {
     }
 
     open(): void {
+        if (this.dialog && !this.dialog.element.isConnected) {
+            // 弹窗被别处销毁过（元素已脱离文档）时，缓存的实例只会把内容画进一个看不见的
+            // 节点里；这时当作没开过，重建一个。
+            this.dialog = null;
+        }
         if (this.dialog) {
             this.dialog.element.style.zIndex = (++window.siyuan.zIndex).toString();
             this.render();
@@ -83,7 +88,7 @@ export class UsageDialog {
             <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.provider")}</span><span data-role="provider"></span></div>
             <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.baseURL")}</span><span class="ft__breakword" data-role="endpoint"></span></div>
             <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.model")}</span><span data-role="model"></span></div>
-            <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.session")}</span><code class="opencode-go-dialog__session" data-role="session"></code><button class="b3-button b3-button--text" data-action="copy" type="button">${t("dialog.copy")}</button></div>
+            <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.session")}</span><code class="opencode-go-dialog__session" data-role="session"></code><button class="block__icon block__icon--show ariaLabel" data-position="north" aria-label="${t("dialog.copy")}" data-action="copy" type="button"><svg><use xlink:href="#iconCopy"></use></svg></button></div>
         </div>
         <div class="opencode-go-dialog__windows" data-role="windows"></div>
         <div class="opencode-go-dialog__foot">
@@ -123,7 +128,8 @@ export class UsageDialog {
         };
         setText("provider", target?.displayName || t("check.none"));
         setText("endpoint", target?.baseURL || t("check.none"));
-        setText("model", target?.modelId || t("check.none"));
+        // 显示真正发给上游的模型 name；思源自己分配的 id 对用户没有意义。
+        setText("model", target?.modelName || target?.modelId || t("check.none"));
         setText("session", this.host.sessionValue() || t("check.none"));
         setText("updated", result?.ok
             ? t("dialog.updatedAt", {time: new Date(result.snapshot.fetchedAt).toLocaleTimeString()})
