@@ -30,10 +30,14 @@ export interface SettingsPanel {
     refreshInfo: () => void;
 }
 
-/** 只读自检区的一行。`tip` 的说明文案整行加粗（例如变量库提醒）。 */
+/** 自检结果的严重度：绿=正常、黄=警告、红=错误。 */
+type CheckLevel = "ok" | "warn" | "error";
+
+/** 只读自检区的一行。`level` 有值时按严重度着色，`tip` 的说明文案整行加粗。 */
 interface CheckRow {
     label: string;
     value: string;
+    level?: CheckLevel;
     tip?: boolean;
 }
 
@@ -221,6 +225,25 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         return t("check.apiKeyMissing");
     };
 
+    /**
+     * 各检查项的严重度。标准统一为「现在到底通不通」：
+     * - 缺失：必需请求头不全 → 红（这是本插件与端点之间的约定，缺了就不是预期配置）；
+     * - 取值不同：插件从不覆盖用户自己改过的取值 → 黄（需要人来确认是不是故意的）；
+     * - API Key：未填或含非 ASCII → 红（必须重新粘贴）；只是混了空白/零宽字符 → 黄
+     *   （用量请求会先净化再用，只有对话会被上游拒，点一次「立即修复」即可）；
+     * - 用量：取到数据 → 绿；还没取过 → 黄；取失败 → 红。
+     */
+    const missingLevel = (values: string[]): CheckLevel => values.length > 0 ? "error" : "ok";
+    const conflictLevel = (values: string[]): CheckLevel => values.length > 0 ? "warn" : "ok";
+    const apiKeyLevel = (check: ProviderCheck): CheckLevel => {
+        if (check.apiKeyIssue === "missing" || check.apiKeyIssue === "nonAscii") {
+            return "error";
+        }
+        return check.apiKeyDirty ? "warn" : "ok";
+    };
+    const usageLevel = (usage: UsageResult | null): CheckLevel =>
+        !usage ? "warn" : isUsageFailure(usage) ? "error" : "ok";
+
     const fillCheck = (container: HTMLElement): void => {
         const check = host.inspect();
         const usage = host.usage();
@@ -230,9 +253,13 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
             ? check.displayName + " · " + check.baseURL
             : check.dismissed ? t("check.dismissed") : t("check.none")});
         if (check.exists) {
-            rows.push({label: t("check.missing"), value: join(check.missing)});
-            rows.push({label: t("check.conflict"), value: join(check.conflicts)});
-            rows.push({label: "API Key", value: apiKeyLabel(check)});
+            rows.push({label: t("check.missing"), value: join(check.missing), level: missingLevel(check.missing)});
+            rows.push({
+                label: t("check.conflict"),
+                value: join(check.conflicts),
+                level: conflictLevel(check.conflicts),
+            });
+            rows.push({label: "API Key", value: apiKeyLabel(check), level: apiKeyLevel(check)});
             rows.push({label: t("check.models"), value: check.modelCount > 0
                 ? String(check.modelCount)
                 : t("check.modelsEmpty")});
@@ -251,13 +278,17 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
             });
         });
         rows.push({label: t("check.sessionVariable"), value: host.sessionValue() || t("check.none")});
-        rows.push({label: t("check.usage"), value: !usage
-            ? t("dialog.never")
-            : isUsageFailure(usage)
-                ? t("dialog.error") + ": " + usage.failure.message
-                : t("dialog.updatedAt", {time: new Date(usage.snapshot.fetchedAt).toLocaleTimeString()})});
+        rows.push({
+            label: t("check.usage"),
+            value: !usage
+                ? t("dialog.never")
+                : isUsageFailure(usage)
+                    ? t("dialog.error") + ": " + usage.failure.message
+                    : t("dialog.updatedAt", {time: new Date(usage.snapshot.fetchedAt).toLocaleTimeString()}),
+            level: usageLevel(usage),
+        });
         rows.push({label: "", value: t("message.variableTip"), tip: true});
-        container.replaceChildren(...rows.map(({label, value, tip}) => {
+        container.replaceChildren(...rows.map(({label, value, level, tip}) => {
             const row = document.createElement("div");
             row.className = "opencode-go-check__row";
             const labelElement = document.createElement("span");
@@ -265,6 +296,7 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
             labelElement.textContent = label;
             const valueElement = document.createElement("span");
             valueElement.className = "opencode-go-check__value ft__breakword" +
+                (level ? " opencode-go-check__value--" + level : "") +
                 (tip ? " opencode-go-check__tip" : "");
             valueElement.textContent = value;
             row.append(labelElement, valueElement);

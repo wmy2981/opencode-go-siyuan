@@ -182,6 +182,21 @@
   &__value {
     flex: 1;
     user-select: text;
+
+    // 严重度着色。用思源主题里「卡片文字色」的三个变量：它们本身就是为深浅两套主题
+    // 分别调过的（浅色偏暗、深色偏亮），比 --b3-theme-success/error 更耐读，
+    // 而黄色没有对应的 --b3-theme-warning，只能用卡片色。
+    &--ok {
+      color: var(--b3-card-success-color);
+    }
+
+    &--warn {
+      color: var(--b3-card-warning-color);
+    }
+
+    &--error {
+      color: var(--b3-card-error-color);
+    }
   }
 
   // 变量库提醒这类说明：整行加粗，和其它检查项的取值区分开。
