@@ -112,12 +112,14 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
      * 指引里的步骤按钮：点击期间禁用，结束后整体重算一遍界面状态 —— 不只是这个按钮的
      * 标签与可用性，还包括其它步骤的状态文案与下面的自检结果（例如刚创建完供应商，
      * 第 2 步就该从「请先完成第 1 步」变成 API Key 的状态）。
+     *
+     * 宽度用 `fn__size200`，与下面「修复」等设置项的按钮同宽，三个步骤看起来才是一组。
      */
     const actionButton = (onClick: () => Promise<void>,
                           sync: (button: HTMLButtonElement) => void): HTMLButtonElement => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "b3-button b3-button--outline";
+        button.className = "b3-button b3-button--outline fn__flex-center fn__size200";
         button.addEventListener("click", () => {
             button.disabled = true;
             void onClick()

@@ -143,6 +143,11 @@
   &--block {
     flex-direction: column;
     align-items: stretch;
+
+    // 第三步的按钮与另外两步同宽，不要跟着容器被拉满
+    > .b3-button {
+      align-self: flex-start;
+    }
   }
 
   &__status {
