@@ -54,7 +54,9 @@ configuration on its own:
 2. **Fill in the credentials.** Press the button to open SiYuan's own AI settings page on that
    provider, paste the API key and add the models you want the native way.
 3. **Check.** Press the button to verify the provider, its headers, the key, the session variable and
-   the usage endpoint; the result is printed right below.
+   the usage endpoint; the result is printed right below. The check can be run as often as you like,
+   and four of its rows are coloured by severity: missing headers, differing values, the key and the
+   usage query show up green (fine), amber (warning) or red (broken).
 
 ## How the session header works
 
@@ -91,6 +93,7 @@ installation-level id is sent for everything.
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
 | Show usage under the input | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
+| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
 | Debug log | off | Prefixed diagnostics in the developer console. Never contains the API key. |
 
@@ -105,6 +108,12 @@ a restart.
 
 ## Notes and limitations
 
+- **This is not an official OpenCode client.** OpenCode's own Go documentation says the plan is meant
+  for OpenCode and for coding agents that produce similar traffic, that traffic is monitored for
+  abuse, and it keeps a list of *validated clients* — anything else, including this plugin, is
+  explicitly **not guaranteed to keep working**. Their terms of service also forbid using multiple
+  accounts to circumvent usage limits and make a breach grounds for terminating access. The settings
+  panel repeats this in red above the steps: use it at your own risk.
 - The usage endpoint `GET https://opencode.ai/zen/go/v1/usage` is a first-party route of OpenCode
   itself, but it is **not documented** and its response shape already changed once. The plugin parses
   it defensively, treats missing fields as *unknown* instead of zero, and drops the placeholder reset
