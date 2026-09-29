@@ -1,0 +1,24 @@
+node_modules
+dist
+package.zip
+
+# webpack 在仓库根目录的开发产物
+index.js
+index.css
+/i18n
+
+# 工具缓存
+.eslintcache
+.dprint
+
+# 编辑器 / 系统
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# 本地开发参考资料（本地专属，不纳入版本管理）
+dev-refs
+
+# 本地手动验收清单（仅交付给使用者，不纳入版本管理）
+ACCEPTANCE.local.md

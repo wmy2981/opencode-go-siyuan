@@ -1,0 +1,101 @@
+name: CD
+
+# 只在 main 分支的推送和手动触发时运行，两者走同一套版本比较逻辑：
+# 版本没变就只上传构建产物，版本升高才发 Release
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 需要完整历史与全部 tag 才能比较版本、生成发行说明
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check version consistency
+        id: version
+        run: |
+          set -euo pipefail
+          plugin_version=$(node -p "require('./plugin.json').version")
+          package_version=$(node -p "require('./package.json').version")
+          if [ "$plugin_version" != "$package_version" ]; then
+            echo "::error::plugin.json ($plugin_version) and package.json ($package_version) versions differ"
+            exit 1
+          fi
+          echo "version=$plugin_version" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        id: build
+        run: npm run build
+
+      - name: Compare with the latest tag
+        id: compare
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          previous_tag=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          echo "previous-tag=$previous_tag" >> "$GITHUB_OUTPUT"
+          if [ -z "$previous_tag" ]; then
+            echo "no tag yet, release $version"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          previous_version="${previous_tag#v}"
+          if [ "$version" = "$previous_version" ]; then
+            echo "version $version is already tagged, skip release"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$(printf '%s\n%s\n' "$previous_version" "$version" | sort -V | tail -n 1)" != "$version" ]; then
+            echo "::error::version $version is lower than the latest tag $previous_tag"
+            exit 1
+          fi
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+      - name: Tag the current commit
+        if: steps.compare.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Generate release notes
+        if: steps.compare.outputs.release == 'true'
+        run: node scripts/release-notes.mjs "${{ steps.compare.outputs.previous-tag }}" > RELEASE_NOTES.md
+
+      - name: Create release
+        if: steps.compare.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "v${{ steps.version.outputs.version }}" package.zip \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes-file RELEASE_NOTES.md
+
+      # 版本校验失败（不一致或降级）时也会执行，产物始终可从 Actions 页面下载
+      - name: Upload package
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: package.zip
