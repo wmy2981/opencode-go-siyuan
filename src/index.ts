@@ -11,7 +11,7 @@ import type {ProviderCheck} from "./provider";
 import {ProviderIconPatcher} from "./providerIcon";
 import {SessionHeaderController} from "./session";
 import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from "./settings";
-import {openSettingsPanel} from "./settingsPanel";
+import {openSettingsPanel, openWithoutAutofocus} from "./settingsPanel";
 import type {LogFn, PluginSettings, UsageResult} from "./types";
 import {UsageClient} from "./usage";
 
@@ -135,7 +135,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             isMobile: isMobileFrontend,
             log: this.log,
         });
-        panel.setting.open(this.displayName || this.name);
+        openWithoutAutofocus(panel.setting, this.displayName || this.name);
         // 打开设置页时强制刷新一次，结果回来后重绘只读自检区。
         void this.refreshUsage().then(() => panel.refreshInfo());
     }

@@ -31,6 +31,35 @@ export interface SettingsPanel {
 }
 
 /**
+ * 打开插件设置面板，并挡掉思源写死的「自动聚焦第一个输入框」。
+ *
+ * 思源 `app/src/plugin/Setting.ts` 的 `open()` 结尾是
+ * `(contentElement.querySelector("input, textarea") as HTMLElement)?.focus()`，
+ * 于是每次打开面板焦点都会被拽到第一个输入框上（移动端还会顺手顶起软键盘）。
+ * 这里在它聚焦的那一瞬间用捕获阶段的 `focusin` 把焦点改到弹窗容器 —— `Dialog`
+ * 本来就把焦点放在容器上（容器带 `tabindex="-1"`），所以这等价于「什么都没聚焦」。
+ * 监听只在 `open()` 期间挂着，之后的 Tab 导航完全不受影响。
+ */
+export const openWithoutAutofocus = (setting: Setting, name: string): void => {
+    const redirect = (event: FocusEvent): void => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.matches("input, textarea")) {
+            return;
+        }
+        if (!target.closest(".b3-dialog__content")) {
+            return;
+        }
+        target.closest<HTMLElement>(".b3-dialog__container")?.focus({preventScroll: true});
+    };
+    document.addEventListener("focusin", redirect, true);
+    try {
+        setting.open(name);
+    } finally {
+        document.removeEventListener("focusin", redirect, true);
+    }
+};
+
+/**
  * 插件的设置面板：用思源官方的 `Setting` 类渲染，控件全部走 `b3-*` 原生类名，
  * 因此外观与原生设置页一致。
  *
