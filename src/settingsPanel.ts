@@ -44,31 +44,34 @@ interface CheckRow {
 }
 
 /**
- * 打开插件设置面板，并挡掉思源写死的「自动聚焦第一个输入框」。
+ * 打开插件设置面板，并挡掉思源写死的「自动聚焦输入框」。
  *
- * 思源 `app/src/plugin/Setting.ts` 的 `open()` 结尾是
- * `(contentElement.querySelector("input, textarea") as HTMLElement)?.focus()`，
- * 于是每次打开面板焦点都会被拽到第一个输入框上（移动端还会顺手顶起软键盘）。
- * 这里在它聚焦的那一瞬间用捕获阶段的 `focusin` 把焦点改到弹窗容器 —— `Dialog`
- * 本来就把焦点放在容器上（容器带 `tabindex="-1"`），所以这等价于「什么都没聚焦」。
- * 监听只在 `open()` 期间挂着，之后的 Tab 导航完全不受影响。
+ * 思源 `app/src/plugin/Setting.ts` 的 `open()` 会给面板里**每一个**输入控件调一次
+ * `bindInput()`（它第一行就是 `inputElement.focus()`，而且此时控件还没插进弹窗），最后再把
+ * 焦点塞进 `contentElement.querySelector("input, textarea")`。
+ *
+ * 桌面端这只是焦点被抢走；移动端更糟：`app/src/mobile/index.ts` 改写过
+ * `HTMLElement.prototype.focus`，每次 focus() 之后都会对「可输入元素」直接调原生桥的
+ * `showKeyboard()`。它判断的是**调用 focus 的那个元素**，跟 focusin 回调之后焦点又被移到
+ * 哪里无关 —— 所以事后把焦点改回弹窗容器来不及，键盘照样弹出来（面板还会顺带滚到最后一个
+ * 输入框那里）。这里改成在 `open()` 期间临时接管 `HTMLElement.prototype.focus`，把这两次
+ * 聚焦请求都丢掉：元素还不在文档里时 focus 本来就是空操作、但原生桥照样会被叫起来，所以
+ * 未连接的输入控件也要挡。不产生 focus，也就不会有原生键盘；`open()` 结束立即还原，
+ * 之后再点输入框照常聚焦。
  */
 export const openWithoutAutofocus = (setting: Setting, name: string): void => {
-    const redirect = (event: FocusEvent): void => {
-        const target = event.target;
-        if (!(target instanceof HTMLElement) || !target.matches("input, textarea")) {
+    const nativeFocus = HTMLElement.prototype.focus;
+    const guarded = function (this: HTMLElement, options?: FocusOptions): void {
+        if (this.matches("input, textarea") && (!this.isConnected || this.closest(".b3-dialog__content"))) {
             return;
         }
-        if (!target.closest(".b3-dialog__content")) {
-            return;
-        }
-        target.closest<HTMLElement>(".b3-dialog__container")?.focus({preventScroll: true});
+        nativeFocus.call(this, options);
     };
-    document.addEventListener("focusin", redirect, true);
+    HTMLElement.prototype.focus = guarded;
     try {
         setting.open(name);
     } finally {
-        document.removeEventListener("focusin", redirect, true);
+        HTMLElement.prototype.focus = nativeFocus;
     }
 };
 
