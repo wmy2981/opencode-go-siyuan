@@ -17,6 +17,8 @@ export interface SettingsPanelHost {
     repair: () => Promise<ProviderCheck>;
     /** 打开思源原生的「设置 - 人工智能」并定位到这个供应商。 */
     openProviderSetting: () => Promise<void>;
+    /** 打开用量详情弹窗（与点击输入框下方那行用量是同一个窗口）。 */
+    openUsage: () => void;
     refreshUsage: () => Promise<UsageResult | null>;
     sessionValue: () => string;
     usage: () => UsageResult | null;
@@ -448,6 +450,13 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("settings.inlineUsageTip"),
         createActionElement: () => switchElement(draft.inlineUsage, (checked) => {
             draft.inlineUsage = checked;
+        }),
+    });
+    setting.addItem({
+        title: t("settings.usageDialog"),
+        description: t("settings.usageDialogTip"),
+        createActionElement: () => buttonElement(t("settings.usageDialogAction"), async () => {
+            host.openUsage();
         }),
     });
     setting.addItem({

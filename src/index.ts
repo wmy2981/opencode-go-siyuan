@@ -129,6 +129,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             create: () => this.createProvider(),
             repair: () => this.repairProvider(),
             openProviderSetting: () => this.openProviderSetting(),
+            openUsage: () => this.dialog?.open(),
             refreshUsage: () => this.refreshUsage(),
             sessionValue: () => this.session!.value(),
             usage: () => this.lastUsage,
