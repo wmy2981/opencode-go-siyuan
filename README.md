@@ -9,13 +9,13 @@ SiYuan's own AI settings page.
 
 ## What it does
 
-- **Native provider, created on request.** The plugin settings panel walks you through three steps:
+- **Native provider, created on request.** The plugin settings panel walks through three steps:
   *create the `OpenCode Go` provider* → *paste the key on SiYuan's own AI page* → *check*. Nothing in
-  `Settings → AI` is ever touched before you click the matching button, and an entry that already
+  `Settings → AI` is touched before the matching button is clicked, and an entry that already
   points at the official endpoint is adopted instead of duplicated. Once created it is an ordinary
   provider — official icon, rename it, paste the key, add or remove models, disable or delete it right
-  there in the native page. **Models are yours to add**: the plugin never fetches or writes the model
-  list.
+  there in the native page. **Models are added by the user**: the plugin never fetches or writes the
+  model list.
 - **Per-conversation `x-opencode-session`.** OpenCode Go rejects requests without that header
   (`400 MissingSessionID`, checked before authentication) and asks for a stable id per conversation
   so that routing and prompt caching work. The kernel only supports static provider headers, so the
@@ -47,17 +47,17 @@ SiYuan's own AI settings page.
 
 ## Setup
 
-Open the plugin settings and follow the numbered guide — the plugin does nothing to your
+Open the plugin settings and follow the numbered guide — the plugin does nothing to the
 configuration on its own:
 
 1. **Create the OpenCode Go provider.** Press the button; if *Settings → AI* already holds an entry
-   on `https://opencode.ai/zen/go/v1` it is adopted, so you never end up with two cards.
+   on `https://opencode.ai/zen/go/v1` it is adopted, so no second card is created.
 2. **Fill in the credentials.** Press the button to open SiYuan's own AI settings page on that
-   provider, paste the API key and add the models you want the native way.
+   provider, paste the API key and add the models you need the native way.
 3. **Check.** Press the button to verify the provider, its headers, the key, the session variable and
-   the usage endpoint; the result is printed right below. The check can be run as often as you like,
-   and four of its rows are coloured by severity: missing headers, differing values, the key and the
-   usage query show up green (fine), amber (warning) or red (broken).
+   the usage endpoint; the result is printed right below. The check can be run repeatedly, and four of
+   its rows are coloured by severity: missing headers, differing values, the key and the usage query
+   show up green (fine), amber (warning) or red (broken).
 
 ## How the session header works
 
@@ -87,8 +87,8 @@ installation-level id is sent for everything.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only when you click. |
-| Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if you deleted it (an existing entry on the same endpoint is adopted instead of duplicated). |
+| *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
+| Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
 | Request header policy | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. |
 | Static session ID | empty | Used when the switch above is off; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
@@ -97,20 +97,20 @@ installation-level id is sent for everything.
 | Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
 | Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
-| Debug log | off | Prefixed diagnostics in the developer console. Never contains the API key. |
+| Debug log | off | Prefixed diagnostics in the developer console. Does not contain the API key. |
 
 Below the third step the panel shows a read-only self check: whether a provider is present on the
 official endpoint, which required headers are missing or differ, whether the key is set (and whether
-it holds a non-ASCII character), how many models you have added, the current session id and the last
+it holds a non-ASCII character), how many models have been added, the current session id and the last
 usage result. The same result is what the **Check** button refreshes.
 
-Deleting the provider in *Settings → AI* is respected permanently: the plugin only ever creates it
-from the **Create the OpenCode Go provider** button, so it never reappears on its own, not even after
+Deleting the provider in *Settings → AI* is respected permanently: the plugin creates it only from
+the **Create the OpenCode Go provider** button, so it does not reappear on its own, not even after
 a restart.
 
 ## Notes and limitations
 
-- **This is not an official OpenCode client.** OpenCode's own Go documentation says the plan is meant
+- **This is not an official OpenCode client.** OpenCode's Go documentation says the plan is meant
   for OpenCode and for coding agents that produce similar traffic, that traffic is monitored for
   abuse, and it keeps a list of *validated clients* — anything else, including this plugin, is
   explicitly **not guaranteed to keep working**. Their terms of service also forbid using multiple
@@ -124,13 +124,13 @@ a restart.
   `/v1/models`), so the renderer cannot call it directly — a browser-side `fetch` with an
   `Authorization` header fails as `TypeError: Failed to fetch` before it is even sent. The plugin
   therefore relays the query through the kernel, exactly like the chat request. The key itself never
-  leaves your machine.
+  leaves the machine.
 - It returns one aggregate percentage per window. OpenCode documents the limits per model, so the
   numbers can differ from the console page for a specific model.
 - Model entries use the bare model id (for example `deepseek-v4.1-flash`) as the upstream model name;
   the dialog shows that name rather than the internal id SiYuan assigns to the entry.
-- The plugin never adds, fetches or edits models. Add them yourself on the provider page and the
-  self check only counts them.
+- The plugin never adds, fetches or edits models. Add them on the provider page; the self check only
+  counts them.
 - The API key must be printable ASCII. Whitespace, zero width characters and byte order marks are
   stripped automatically (they are what makes the gateway answer *Invalid API key.*), but any other
   non-ASCII character has to be fixed by pasting the key again; the settings self check points at the
@@ -142,10 +142,10 @@ a restart.
 - The card icon is applied by the plugin after the native list renders: SiYuan only ever takes a
   provider icon from its own built-in preset table (matched by base URL) and exposes no hook for
   third-party brands, so the plugin swaps the avatar of every card that points at the official
-  endpoint. That is also why it works after you rename the provider or sync it from another device.
+  endpoint. This also means the icon survives a rename of the provider or a sync from another device.
 - The `User-Agent` is injected through the provider's headers. If a future kernel release overwrites
   it, switch the policy or set the header manually in *Settings → AI → OpenCode Go → Headers*.
-- The plugin never writes your API key to a log, a message or the DOM; it only uses the key stored in
+- The plugin does not write the API key to a log, a message or the DOM; it only uses the key stored in
   the provider for the usage request.
 - `OPENCODE_GO_SESSION` lives in *Settings → Keys and variables*. The plugin maintains it and removes
   it when the plugin is uninstalled; deleting it manually only costs cache affinity, never a
@@ -167,5 +167,5 @@ the browser is missing.
 
 ## License and funding
 
-Released under the [MIT License](LICENSE). If this plugin is useful to you, you can support the
+Released under the [MIT License](LICENSE). If this plugin is useful, you can support the
 author at <https://afdian.com/a/wmy2981>.
