@@ -24,6 +24,7 @@ SiYuan's own AI settings page.
 - **Usage.** Rolling (5 hour), weekly and monthly percentages — in the plugin settings panel and as
   a line under the agent input area. Click that line for a detail dialog with the three windows,
   their reset countdowns, the current endpoint / upstream model name / session and any error detail.
+  The same dialog opens from the optional top bar button, which is off by default.
 
 ## Requirements
 
@@ -93,6 +94,7 @@ installation-level id is sent for everything.
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
 | Show usage under the input | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
+| Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
 | Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
 | Debug log | off | Prefixed diagnostics in the developer console. Never contains the API key. |

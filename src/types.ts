@@ -80,6 +80,8 @@ export interface PluginSettings {
     customUserAgent: string;
     /** 在智能体输入框下方显示用量文本。 */
     inlineUsage: boolean;
+    /** 在顶栏注册一个打开用量弹窗的插件按钮；默认关闭。 */
+    topBarButton: boolean;
     refreshIntervalSeconds: number;
     debugLog: boolean;
     /** 插件自己维护的供应商 id；用于在用户改名后仍能稳定识别。 */

@@ -487,6 +487,13 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }),
     });
     setting.addItem({
+        title: t("settings.topBarButton"),
+        description: t("settings.topBarButtonTip"),
+        createActionElement: () => switchElement(draft.topBarButton, (checked) => {
+            draft.topBarButton = checked;
+        }),
+    });
+    setting.addItem({
         title: t("settings.usageDialog"),
         description: t("settings.usageDialogTip"),
         createActionElement: () => buttonElement(t("settings.usageDialogAction"), async () => {

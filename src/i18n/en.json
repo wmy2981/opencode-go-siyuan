@@ -78,6 +78,8 @@
   "settings.customUserAgentTip": "Only used when the previous item is set to custom.",
   "settings.inlineUsage": "Show usage under the input",
   "settings.inlineUsageTip": "Only shown while the OpenCode Go endpoint is in use; click it for the details.",
+  "settings.topBarButton": "Top bar usage button",
+  "settings.topBarButtonTip": "Register a plugin button in the top bar that opens the usage dialog; off by default.",
   "settings.usageDialog": "Usage detail dialog",
   "settings.usageDialogTip": "Open the dialog at any time for the rolling / weekly / monthly usage, the current session ID and the endpoint error detail.",
   "settings.usageDialogAction": "Open the dialog",

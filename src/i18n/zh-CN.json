@@ -78,6 +78,8 @@
   "settings.customUserAgentTip": "仅当上一项选择「自定义」时生效。",
   "settings.inlineUsage": "在输入框下方显示用量",
   "settings.inlineUsageTip": "仅在使用 OpenCode Go 端点时显示；点击可查看详情。",
+  "settings.topBarButton": "顶栏用量按钮",
+  "settings.topBarButtonTip": "在顶栏注册一个打开用量弹窗的插件按钮；默认关闭。",
   "settings.usageDialog": "用量详情弹窗",
   "settings.usageDialogTip": "随时打开弹窗看 5 小时 / 周 / 月用量、当前会话 ID 和接口错误详情。",
   "settings.usageDialogAction": "打开弹窗",

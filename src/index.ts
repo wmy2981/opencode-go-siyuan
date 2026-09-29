@@ -19,6 +19,15 @@ import {UsageClient} from "./usage";
 const JUMP_TIMEOUT_MS = 3000;
 const JUMP_INTERVAL_MS = 100;
 
+/** 顶栏用量按钮在插件内的唯一 id：宿主按它去重、排序，并按它持久化显隐状态。 */
+const TOP_BAR_USAGE_ID = "usage";
+/**
+ * 顶栏图标用 Lucide 的 gauge（https://lucide.dev/icons/gauge），只把线宽调成 1.7 与思源内置
+ * 图标一致。`addTopBar` 对以 `<svg` 开头的取值原样插入，尺寸由 `.toolbar__item svg` 与移动端
+ * 插件菜单的 `.b3-menu__icon` 决定，所以这里不写 width/height。
+ */
+const TOP_BAR_USAGE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>';
+
 const isMobileFrontend = (): boolean => {
     const frontend = getFrontend();
     return frontend === "mobile" || frontend === "browser-mobile";
@@ -97,6 +106,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             log: this.log,
         });
         this.iconPatcher = new ProviderIconPatcher(this.log);
+        this.syncTopBarButton();
 
         this.inline.setEnabled(this.settings.inlineUsage);
         await this.session.sync();
@@ -228,6 +238,26 @@ export default class OpenCodeGoPlugin extends Plugin {
         });
     }
 
+    /**
+     * 按设置注册或摘掉顶栏的用量按钮（默认关闭）。
+     *
+     * `id` 固定，宿主按它去重：开启时重复调用只是原地更新，不会多出第二个按钮；关闭时摘掉。
+     * 插件被禁用或卸载时，顶栏条目由宿主统一清理，这里不重复处理。
+     */
+    private syncTopBarButton(): void {
+        if (!this.settings.topBarButton) {
+            this.removeTopBar(TOP_BAR_USAGE_ID);
+            return;
+        }
+        this.addTopBar({
+            id: TOP_BAR_USAGE_ID,
+            icon: TOP_BAR_USAGE_ICON,
+            // 标题同时是按钮的 aria-label/提示文案，与弹窗标题一致。
+            title: this.t("dialog.title"),
+            callback: () => this.dialog?.open(),
+        });
+    }
+
     private async refreshUsage(): Promise<UsageResult | null> {
         if (!this.usage) {
             return null;
@@ -261,6 +291,7 @@ export default class OpenCodeGoPlugin extends Plugin {
         this.settings = normalizeSettings(draft);
         await saveSettings(this, this.settings);
         this.inline?.setEnabled(this.settings.inlineUsage);
+        this.syncTopBarButton();
         this.startTimer();
         await this.session?.sync();
         this.inline?.schedule();

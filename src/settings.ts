@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     userAgentMode: "kernel",
     customUserAgent: "",
     inlineUsage: true,
+    topBarButton: false,
     refreshIntervalSeconds: DEFAULT_REFRESH_SECONDS,
     debugLog: false,
     injectedProviderId: "",
@@ -31,6 +32,8 @@ export const normalizeSettings = (raw: unknown): PluginSettings => {
         userAgentMode: isUserAgentMode(source.userAgentMode) ? source.userAgentMode : DEFAULT_SETTINGS.userAgentMode,
         customUserAgent: typeof source.customUserAgent === "string" ? source.customUserAgent.trim() : "",
         inlineUsage: source.inlineUsage !== false,
+        // 顶栏按钮是可选入口，只有显式存成 true 才注册。
+        topBarButton: source.topBarButton === true,
         refreshIntervalSeconds: Number.isFinite(interval) && interval > 0
             ? Math.min(MAX_REFRESH_SECONDS, Math.max(MIN_REFRESH_SECONDS, Math.round(interval)))
             : DEFAULT_REFRESH_SECONDS,
