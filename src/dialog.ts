@@ -1,4 +1,5 @@
 import {Dialog, showMessage} from "siyuan";
+import {copyText} from "./clipboard";
 import type {Translate} from "./i18n";
 import {USAGE_WINDOW_KEYS} from "./usage";
 import {isUsageFailure} from "./types";
@@ -219,11 +220,11 @@ export class UsageDialog {
         if (!value) {
             return;
         }
-        try {
-            await navigator.clipboard.writeText(value);
+        if (await copyText(value)) {
             showMessage(this.host.t("dialog.copied"));
-        } catch (error) {
-            this.host.log("dialog", "clipboard write failed: " + String(error));
+            return;
         }
+        this.host.log("dialog", "clipboard write failed");
+        showMessage(this.host.t("dialog.copyFailed"));
     }
 }

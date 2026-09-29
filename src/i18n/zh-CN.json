@@ -24,6 +24,7 @@
   "dialog.session": "当前会话 ID",
   "dialog.copy": "复制",
   "dialog.copied": "已复制",
+  "dialog.copyFailed": "复制失败，请手动选择文本",
   "dialog.error": "错误详情",
 
   "duration.hourMinute": "{h} 小时 {m} 分",

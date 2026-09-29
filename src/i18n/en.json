@@ -24,6 +24,7 @@
   "dialog.session": "Current session ID",
   "dialog.copy": "Copy",
   "dialog.copied": "Copied",
+  "dialog.copyFailed": "Copy failed, please select the text manually",
   "dialog.error": "Error detail",
 
   "duration.hourMinute": "{h}h {m}m",
