@@ -30,6 +30,13 @@ export interface SettingsPanel {
     refreshInfo: () => void;
 }
 
+/** 只读自检区的一行。`tip` 的说明文案整行加粗（例如变量库提醒）。 */
+interface CheckRow {
+    label: string;
+    value: string;
+    tip?: boolean;
+}
+
 /**
  * 打开插件设置面板，并挡掉思源写死的「自动聚焦第一个输入框」。
  *
@@ -215,18 +222,18 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
     const fillCheck = (container: HTMLElement): void => {
         const check = host.inspect();
         const usage = host.usage();
-        const rows: Array<[string, string]> = [];
+        const rows: CheckRow[] = [];
         const join = (values: string[]): string => values.length > 0 ? values.join(", ") : t("check.none");
-        rows.push([t("check.provider"), check.exists
+        rows.push({label: t("check.provider"), value: check.exists
             ? check.displayName + " · " + check.baseURL
-            : check.dismissed ? t("check.dismissed") : t("check.none")]);
+            : check.dismissed ? t("check.dismissed") : t("check.none")});
         if (check.exists) {
-            rows.push([t("check.missing"), join(check.missing)]);
-            rows.push([t("check.conflict"), join(check.conflicts)]);
-            rows.push(["API Key", apiKeyLabel(check)]);
-            rows.push([t("check.models"), check.modelCount > 0
+            rows.push({label: t("check.missing"), value: join(check.missing)});
+            rows.push({label: t("check.conflict"), value: join(check.conflicts)});
+            rows.push({label: "API Key", value: apiKeyLabel(check)});
+            rows.push({label: t("check.models"), value: check.modelCount > 0
                 ? String(check.modelCount)
-                : t("check.modelsEmpty")]);
+                : t("check.modelsEmpty")});
         }
         check.foreign.forEach((item) => {
             const parts: string[] = [];
@@ -236,23 +243,27 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
             if (item.conflicts.length > 0) {
                 parts.push(t("check.conflict") + ": " + item.conflicts.join(", "));
             }
-            rows.push([t("check.provider") + " · " + item.displayName, parts.length > 0 ? parts.join("; ") : t("check.ok")]);
+            rows.push({
+                label: t("check.provider") + " · " + item.displayName,
+                value: parts.length > 0 ? parts.join("; ") : t("check.ok"),
+            });
         });
-        rows.push([t("check.sessionVariable"), host.sessionValue() || t("check.none")]);
-        rows.push([t("check.usage"), !usage
+        rows.push({label: t("check.sessionVariable"), value: host.sessionValue() || t("check.none")});
+        rows.push({label: t("check.usage"), value: !usage
             ? t("dialog.never")
             : isUsageFailure(usage)
                 ? t("dialog.error") + ": " + usage.failure.message
-                : t("dialog.updatedAt", {time: new Date(usage.snapshot.fetchedAt).toLocaleTimeString()})]);
-        rows.push(["", t("message.variableTip")]);
-        container.replaceChildren(...rows.map(([label, value]) => {
+                : t("dialog.updatedAt", {time: new Date(usage.snapshot.fetchedAt).toLocaleTimeString()})});
+        rows.push({label: "", value: t("message.variableTip"), tip: true});
+        container.replaceChildren(...rows.map(({label, value, tip}) => {
             const row = document.createElement("div");
             row.className = "opencode-go-check__row";
             const labelElement = document.createElement("span");
             labelElement.className = "opencode-go-check__label";
             labelElement.textContent = label;
             const valueElement = document.createElement("span");
-            valueElement.className = "opencode-go-check__value ft__breakword";
+            valueElement.className = "opencode-go-check__value ft__breakword" +
+                (tip ? " opencode-go-check__tip" : "");
             valueElement.textContent = value;
             row.append(labelElement, valueElement);
             return row;

@@ -183,4 +183,9 @@
     flex: 1;
     user-select: text;
   }
+
+  // 变量库提醒这类说明：整行加粗，和其它检查项的取值区分开。
+  &__tip {
+    font-weight: bold;
+  }
 }
