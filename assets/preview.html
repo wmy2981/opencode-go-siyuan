@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>OpenCode Go · 插件预览图</title>
+<style>
+/*
+ * 预览图取值说明：所有颜色与尺寸都照抄思源内置 daylight 主题与内核样式表，不自定义配色。
+ * - 变量：app/appearance/themes/daylight/theme.css
+ * - 卡片：app/src/assets/scss/component/_card.scss
+ * - 开关：app/src/assets/scss/component/_switch.scss
+ * - 对话框：app/src/assets/scss/component/_dialog.scss
+ * - 智能体输入区：app/src/assets/scss/business/_ai_agent.scss
+ */
+:root {
+  --b3-theme-primary: #3575f0;
+  --b3-theme-primary-lightest: rgba(53, 117, 240, .12);
+  --b3-theme-background: #fff;
+  --b3-theme-surface: #f6f6f6;
+  --b3-theme-surface-lighter: #e0e0e0;
+  --b3-border-color: #e0e0e0;
+  --b3-theme-error: #d23f31;
+  --b3-theme-on-background: #222;
+  --b3-theme-on-surface: #5f6368;
+  --b3-theme-on-surface-light: rgba(95, 99, 104, .68);
+  --b3-body-background: #EBECF0;
+  --b3-border-radius: 6px;
+  --b3-border-radius-b: 12px;
+  --b3-font-size: 14px;
+  --b3-list-hover: rgba(0, 0, 0, .075);
+  --b3-point-shadow: 0 0 1px 0 rgba(0, 0, 0, .1), 0 0 2px 0 rgba(0, 0, 0, .2);
+  --b3-dialog-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  --b3-switch-background: #e1e3e1;
+  --b3-switch-border: var(--b3-theme-on-surface-light);
+  --b3-switch-checked: #fff;
+  --b3-switch-checked-background: var(--b3-theme-primary);
+  --b3-font-family: BlinkMacSystemFont, Helvetica, "Luxi Sans", "DejaVu Sans", arial, "Microsoft YaHei", sans-serif;
+}
+
+body { width: 1024px; height: 768px; margin: 0; overflow: hidden; background: var(--b3-body-background); font-family: var(--b3-font-family); font-size: var(--b3-font-size); color: var(--b3-theme-on-background); -webkit-font-smoothing: antialiased; }
+
+.config-name { font-size: 14px; line-height: 20px; }
+.fn__ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── 第一块：思源「设置 - 人工智能」里的供应商卡片 ───────────────── */
+.panel { position: absolute; background: var(--b3-theme-background); border: 1px solid var(--b3-border-color); border-radius: var(--b3-border-radius-b); box-shadow: var(--b3-point-shadow); }
+.panel--settings { left: 24px; top: 24px; width: 604px; height: 236px; padding: 16px 20px; box-sizing: border-box; }
+.panel--settings > .panel__title { font-size: 16px; font-weight: 500; padding-bottom: 10px; border-bottom: 1px solid var(--b3-theme-surface-lighter); }
+.config-item { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+.config-item__head { display: flex; align-items: center; justify-content: space-between; }
+.b3-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: 0; border-radius: var(--b3-border-radius); padding: 4px 8px; line-height: 20px; font-family: inherit; font-size: 14px; }
+.b3-button--outline { background: transparent; color: var(--b3-theme-on-surface); box-shadow: inset 0 0 0 1px var(--b3-border-color); }
+.b3-button--outline svg { height: 14px; width: 14px; }
+.b3-cards { display: grid; gap: 16px; grid-template-columns: 1fr; }
+
+.b3-card { box-shadow: var(--b3-point-shadow) inset; background-color: var(--b3-theme-surface); border-radius: var(--b3-border-radius); overflow: hidden; display: flex; cursor: pointer; }
+.b3-card__img { margin: 16px 0 16px 16px; }
+.b3-card__img img { height: 74px; width: 74px; object-fit: cover; border-radius: var(--b3-border-radius); display: block; }
+.b3-card__info { padding: 16px 16px 0; line-height: 18px; flex: 1; display: flex; flex-direction: column; }
+.b3-card__info--left { padding-bottom: 16px; padding-right: 8px; }
+.b3-card__desc { color: var(--b3-theme-on-surface); font-size: 12px; margin-top: 8px; line-height: 18px; }
+.b3-card__actions { display: flex; align-items: flex-start; gap: 12px; padding: 18px 16px 0 0; }
+.b3-card__actions .block__icon { display: inline-flex; height: 18px; width: 18px; color: var(--b3-theme-on-surface); }
+.b3-card__actions .block__icon svg { height: 18px; width: 18px; }
+
+/* 开关：component/_switch.scss */
+.b3-switch { flex-shrink: 0; -webkit-appearance: none; appearance: none; width: 26px; height: 16px; border: 1px solid var(--b3-switch-border); border-radius: var(--b3-border-radius-b); margin: 0; outline: none; display: inline-block; position: relative; background-color: var(--b3-switch-background); }
+.b3-switch::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background-color: var(--b3-switch-border); display: block; left: 7px; position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.b3-switch:checked { background-color: var(--b3-switch-checked-background); border-color: transparent; }
+.b3-switch:checked::after { background-color: var(--b3-switch-checked); height: 12px; width: 12px; left: 17px; }
+
+/* ── 第二块：智能体输入区下沿的用量行 ──────────────────────────── */
+.panel--chat { left: 652px; top: 24px; width: 348px; height: 236px; box-sizing: border-box; padding-top: 14px; display: flex; flex-direction: column; justify-content: flex-end; background: transparent; border: 0; box-shadow: none; }
+.agent-chat__input-area { background: var(--b3-theme-background); border: 1px solid var(--b3-border-color); border-radius: var(--b3-border-radius-b); margin: 0 16px 12px; padding: 8px; }
+.agent-chat__composer-host { min-height: 40px; max-height: 120px; padding: 4px 2px; color: var(--b3-theme-on-surface-light); line-height: 20px; }
+.agent-chat__buttons { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: var(--b3-border-radius-b); background: var(--b3-theme-surface); color: var(--b3-theme-on-surface); font-size: 12px; }
+.send { display: inline-flex; align-items: center; justify-content: center; height: 26px; padding: 0 12px; border-radius: var(--b3-border-radius-b); background: var(--b3-theme-primary); color: #fff; font-size: 12px; }
+/* 插件注入的那一行：位置、字号与颜色都来自插件自己的样式，仅使用主题变量 */
+.opencode-go-usage { margin: -6px 16px 6px; overflow: hidden; text-align: center; color: var(--b3-theme-on-surface); font-size: 12px; line-height: 16px; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+
+/* ── 第三块：用量详情弹窗 ─────────────────────────────────────── */
+.b3-dialog__container { position: absolute; left: 202px; top: 292px; width: 620px; border-radius: var(--b3-border-radius-b); border: 1px solid var(--b3-theme-surface-lighter); background-color: var(--b3-theme-surface); box-shadow: var(--b3-dialog-shadow); display: flex; flex-direction: column; box-sizing: border-box; }
+.b3-dialog__header { position: relative; padding: 9px 24px; line-height: 24px; font-size: 16px; font-weight: 500; border-bottom: 1px solid var(--b3-theme-surface-lighter); }
+.b3-dialog__close { position: absolute; top: 4px; right: 4px; height: 18px; width: 18px; padding: 8px; opacity: .68; color: var(--b3-theme-on-surface); display: inline-flex; align-items: center; justify-content: center; }
+.b3-dialog__content { padding: 16px 24px; }
+
+.opencode-go-dialog__meta { display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid var(--b3-border-color); }
+.opencode-go-dialog__row { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 20px; }
+.opencode-go-dialog__label { flex: none; width: 88px; color: var(--b3-theme-on-surface); opacity: .7; }
+.opencode-go-dialog__session { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: Consolas, "Liberation Mono", monospace; }
+.b3-button--text { background: transparent; color: var(--b3-theme-primary); padding: 2px 6px; }
+.opencode-go-dialog__windows { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+.opencode-go-dialog__window-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; line-height: 20px; }
+.opencode-go-dialog__window-value { color: var(--b3-theme-on-surface); }
+.opencode-go-bar { height: 4px; border-radius: 2px; background: var(--b3-border-color); overflow: hidden; }
+.opencode-go-bar > span { display: block; height: 100%; border-radius: 2px; background: var(--b3-theme-primary); }
+.opencode-go-dialog__window-foot { font-size: 12px; line-height: 18px; color: var(--b3-theme-on-surface); opacity: .7; margin-top: 4px; }
+.opencode-go-dialog__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid var(--b3-border-color); }
+.opencode-go-dialog__updated { font-size: 12px; color: var(--b3-theme-on-surface); opacity: .7; }
+</style>
+</head>
+<body>
+
+<!-- 第一块：思源原生的「设置 - 人工智能」供应商卡片，插件注入的 OpenCode Go 就在列表里，可原生编辑 -->
+<section class="panel panel--settings">
+  <div class="panel__title">人工智能</div>
+  <div class="config-item">
+    <div class="config-item__head">
+      <div class="config-name">API 提供商</div>
+      <button class="b3-button b3-button--outline" type="button">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 7v18M7 16h18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+        添加
+      </button>
+    </div>
+    <div class="b3-cards">
+      <div class="b3-card">
+        <div class="b3-card__img"><img src="provider-icon.svg" alt="OpenCode Go"></div>
+        <div class="b3-card__info b3-card__info--left">
+          <div class="config-name fn__ellipsis">OpenCode Go</div>
+          <div class="b3-card__desc">https://opencode.ai/zen/go/v1<br>42 API 模型</div>
+        </div>
+        <div class="b3-card__actions">
+          <input class="b3-switch" type="checkbox" checked aria-label="启用">
+          <span class="block__icon">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9h14l-1.2 16.2A2 2 0 0 1 19.8 27h-7.6a2 2 0 0 1-2-1.8L9 9Zm3.4 0V6.6A1.6 1.6 0 0 1 14 5h4a1.6 1.6 0 0 1 1.6 1.6V9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 第二块：智能体输入区，以及插件插在输入框下方的那一行用量 -->
+<section class="panel panel--chat">
+  <div class="agent-chat__input-area">
+    <div class="agent-chat__composer-host">给智能体发消息…</div>
+    <div class="agent-chat__buttons">
+      <span class="chip">OpenCode Go · deepseek-v4.1-flash</span>
+      <span class="send">发送</span>
+    </div>
+  </div>
+  <div class="opencode-go-usage">OpenCode Go · 5小时 3% · 周 12%</div>
+</section>
+
+<!-- 第三块：点击那一行后打开的用量详情弹窗（思源原生 Dialog） -->
+<section class="b3-dialog__container">
+  <div class="b3-dialog__header">
+    OpenCode Go 用量
+    <span class="b3-dialog__close">
+      <svg viewBox="0 0 32 32" aria-hidden="true" width="14" height="14"><path d="M8 8l16 16M24 8L8 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </span>
+  </div>
+  <div class="b3-dialog__content">
+    <div class="opencode-go-dialog__meta">
+      <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">供应商</span><span>OpenCode Go</span></div>
+      <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">接口地址</span><span>https://opencode.ai/zen/go/v1</span></div>
+      <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">当前模型</span><span>deepseek-v4.1-flash</span></div>
+      <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">当前会话 ID</span><code class="opencode-go-dialog__session">9f2c1d4e-7a83-4b21-9e05-6c7d8a1b2f30</code><button class="b3-button b3-button--text" type="button">复制</button></div>
+    </div>
+    <div class="opencode-go-dialog__windows">
+      <div class="opencode-go-dialog__window">
+        <div class="opencode-go-dialog__window-head"><span>5 小时（滚动窗口）</span><span class="opencode-go-dialog__window-value">已用 3%</span></div>
+        <div class="opencode-go-bar"><span style="width:3%"></span></div>
+        <div class="opencode-go-dialog__window-foot">3 小时 29 分后重置</div>
+      </div>
+      <div class="opencode-go-dialog__window">
+        <div class="opencode-go-dialog__window-head"><span>每周</span><span class="opencode-go-dialog__window-value">已用 12%</span></div>
+        <div class="opencode-go-bar"><span style="width:12%"></span></div>
+        <div class="opencode-go-dialog__window-foot">5 天 17 小时后重置</div>
+      </div>
+      <div class="opencode-go-dialog__window">
+        <div class="opencode-go-dialog__window-head"><span>每月</span><span class="opencode-go-dialog__window-value">已用 9%</span></div>
+        <div class="opencode-go-bar"><span style="width:9%"></span></div>
+        <div class="opencode-go-dialog__window-foot">28 天 1 小时后重置</div>
+      </div>
+    </div>
+    <div class="opencode-go-dialog__foot">
+      <span class="opencode-go-dialog__updated">最后更新：14:26:31</span>
+      <button class="b3-button b3-button--outline" type="button">刷新</button>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
