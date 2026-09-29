@@ -134,6 +134,13 @@
   }
 }
 
+// 设置面板「使用步骤」里的风险提示：红字另起一行，接在说明文案下面。
+// 红用 --b3-theme-error（思源自己的错误色），深浅主题下都是同一支。
+.opencode-go-guide__warn {
+  margin-top: 4px;
+  color: var(--b3-theme-error);
+}
+
 // 设置面板里的顺序指引：每一步就是「按钮 + 状态」，第三步下面再挂自检结果。
 .opencode-go-step {
   display: flex;

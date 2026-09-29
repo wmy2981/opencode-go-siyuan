@@ -73,6 +73,15 @@ export const openWithoutAutofocus = (setting: Setting, name: string): void => {
 };
 
 /**
+ * `Setting` 把 title/description 用 innerHTML 插进弹窗，所以拼 HTML 之前先转义文案，
+ * 免得译文里的尖括号被当成标签。
+ */
+const escapeHtml = (value: string): string => value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+/**
  * 插件的设置面板：用思源官方的 `Setting` 类渲染，控件全部走 `b3-*` 原生类名，
  * 因此外观与原生设置页一致。
  *
@@ -383,7 +392,9 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
 
     setting.addItem({
         title: t("guide.title"),
-        description: t("guide.tip"),
+        // 风险提示另起一行、用红字。description 是 innerHTML，可以直接带标签。
+        description: escapeHtml(t("guide.tip")) +
+            '<div class="opencode-go-guide__warn">' + escapeHtml(t("guide.warn")) + "</div>",
     });
     setting.addItem({
         title: t("guide.step1.title"),

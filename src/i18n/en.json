@@ -41,6 +41,7 @@
 
   "guide.title": "Getting started",
   "guide.tip": "The plugin never changes SiYuan's configuration on its own: each step below runs only after you click it.",
+  "guide.warn": "Use at your own risk: this plugin is not an official OpenCode client and is not on OpenCode's validated-client list. OpenCode states that Go is meant for OpenCode and for coding agents producing similar traffic, that it monitors for abuse, and that validated third-party clients are not guaranteed to keep working. Breaching its terms of service can get your access restricted or terminated, so do not use this to bypass usage limits.",
   "guide.step1.title": "1. Create the OpenCode Go provider",
   "guide.step1.desc": "Click the button to create the provider in SiYuan's own AI settings page together with the required headers. An entry that already points at this endpoint is adopted instead, so nothing is ever duplicated.",
   "guide.step1.action": "Create the provider",
