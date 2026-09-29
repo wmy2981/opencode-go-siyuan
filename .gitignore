@@ -22,3 +22,6 @@ dev-refs
 
 # 本地手动验收清单（仅交付给使用者，不纳入版本管理）
 ACCEPTANCE.local.md
+
+# 个人专属的 agent 指令（仅本机有效，不纳入版本管理）
+CLAUDE.local.md
