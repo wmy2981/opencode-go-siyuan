@@ -211,3 +211,40 @@
     font-weight: bold;
   }
 }
+
+// 移动端：弹窗只有 92vw，思源那套「控件固定 200px、文字让位」的排法会把说明压成一列碎字。
+// 这里只把本插件的两块改成上下两行（类名由 settingsPanel 打在思源生成的弹窗上，
+// 不影响其它插件的设置页）。
+.opencode-go-panel--mobile {
+  // 步骤行：按钮固定 200px 且不参与收缩，状态文案只剩二十来像素宽 —— 中文只能一个字一行，
+  // URL 也会被逐段断开。改成按钮一行、状态整行。
+  .opencode-go-step {
+    flex-direction: column;
+    align-items: stretch;
+
+    // 按钮自己带 `fn__flex-center`（align-self: center），换行后会孤零零地居中；窄屏下
+    // 让它和下面设置项里的按钮一样占满整行（思源移动端对设置项按钮就是这个规矩）。
+    > .b3-button {
+      align-self: stretch;
+    }
+
+    // 整行宽度下优先在空格处换行，不要在词中间断开。
+    &__status {
+      word-break: normal;
+      overflow-wrap: break-word;
+    }
+  }
+
+  // 自检区：取值列原来只有 129px，`OPENCODE_GO_SESSION` 这类长标识符会被拦腰断成两行。
+  // 标签独占一行后，取值能用满整行宽度。
+  .opencode-go-check {
+    &__row {
+      flex-direction: column;
+      gap: 0;
+    }
+
+    &__label {
+      width: auto;
+    }
+  }
+}

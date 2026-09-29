@@ -76,6 +76,26 @@ export const openWithoutAutofocus = (setting: Setting, name: string): void => {
 };
 
 /**
+ * 思源的 `Setting` 在 `open()` 里自己 new 一个 `Dialog`，插件没有机会传 `containerClassName`；
+ * 而移动端样式（`src/index.scss` 里的 `.opencode-go-panel--mobile`）必须只作用在本插件的
+ * 弹窗上 —— `.config-item` 这类类名是所有插件的设置页共用的，不能全局改。所以在 `open()`
+ * 之后补一个只属于本插件的作用域类名。
+ */
+class PanelSetting extends Setting {
+    constructor(private readonly mobile: boolean, options: ConstructorParameters<typeof Setting>[0]) {
+        super(options);
+    }
+
+    open(name: string): void {
+        super.open(name);
+        // npm 包的 `Setting` 类型没声明运行时确实存在的 `dialog` 字段。
+        const dialog = (this as unknown as {dialog?: {element: HTMLElement}}).dialog;
+        dialog?.element.classList.add("opencode-go-panel");
+        dialog?.element.classList.toggle("opencode-go-panel--mobile", this.mobile);
+    }
+}
+
+/**
  * `Setting` 把 title/description 用 innerHTML 插进弹窗，所以拼 HTML 之前先转义文案，
  * 免得译文里的尖括号被当成标签。
  */
@@ -379,7 +399,7 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
 
     // ---- 设置 -------------------------------------------------------------
 
-    const setting = new Setting({
+    const setting = new PanelSetting(host.isMobile(), {
         width: host.isMobile() ? "92vw" : "760px",
         height: "80vh",
         confirmCallback: () => {
