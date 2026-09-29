@@ -24,7 +24,14 @@ export const PLUGIN_PACKAGE_NAME = "opencode-go-siyuan";
 /** 思源把插件目录托管在 /plugins/<name>/ 下，供应商卡片用这个地址加载官方图标。 */
 export const PROVIDER_ICON_URL = "/plugins/" + PLUGIN_PACKAGE_NAME + "/provider-icon.svg";
 
-export const DEFAULT_PLUGIN_UA = "siyuan-opencode-go/1.0.0";
+/**
+ * 插件自身的 User-Agent 标识。
+ *
+ * 版本号由 webpack 在构建时从 `plugin.json` 注入（`__PLUGIN_VERSION__`），不在源码里写死：
+ * 版本号只维护 `package.json` 与 `plugin.json` 两处，CI 会校验二者一致（`.github/workflows/cd.yml`），
+ * 因此运行时发出去的标识永远等于当前安装的插件版本。
+ */
+export const DEFAULT_PLUGIN_UA = "siyuan-opencode-go/" + __PLUGIN_VERSION__;
 export const USAGE_TIMEOUT_MS = 15000;
 
 /**

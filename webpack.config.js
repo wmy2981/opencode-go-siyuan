@@ -33,6 +33,11 @@ const extraAssetPatterns = ["provider-icon.svg"]
 module.exports = (env, argv) => {
     const production = argv.mode === "production";
     const plugins = [
+        // 插件标识里的版本号在构建时从 plugin.json 注入，源码里不再写死版本字面量。
+        // 开发与生产构建都注入，避免两条路径行为不一致。
+        new webpack.DefinePlugin({
+            __PLUGIN_VERSION__: JSON.stringify(pluginManifest.version),
+        }),
         new MiniCssExtractPlugin({
             filename: production ? "dist/index.css" : "index.css",
         }),

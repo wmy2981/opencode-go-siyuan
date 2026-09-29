@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Releasing
 
-The version string lives in **five** places and a release commit bumps all of them together: `package.json`, `plugin.json`, `src/opencode.ts` (`DEFAULT_PLUGIN_UA`), `README.md` and `README.zh-CN.md` (the sample `User-Agent` line). CI fails when `plugin.json` and `package.json` disagree.
+The version string is authoritative in `package.json` and `plugin.json`; CI fails when the two disagree. `src/opencode.ts` no longer holds a literal — `DEFAULT_PLUGIN_UA` gets its version from `plugin.json` at build time (`webpack.DefinePlugin` → `__PLUGIN_VERSION__`), so the identity the plugin sends always matches the installed build. The sample `User-Agent` lines in `README.md` and `README.zh-CN.md` are illustrative; update them with a version bump only to keep the docs readable.
 
 Do not tag or publish by hand: pushing to `main` runs `.github/workflows/cd.yml`, which rejects a version lower than the newest `v*` tag, skips the release when it is unchanged, and otherwise creates the tag and the GitHub release itself. Release notes are generated from commit subjects by `scripts/release-notes.mjs`.
 
