@@ -1,5 +1,161 @@
-// 插件样式入口。
-// 组件相关样式随对应功能一起加入，这里先保留一个最小的规则，保证打包产物里有 index.css。
-.opencode-go-plugin {
-  box-sizing: border-box;
+// 输入框下方的用量行：位置与同类实现一致，插在输入区下沿外侧。
+// 只使用思源主题变量，因此在深浅色主题下自动跟随，不需要单独的深色规则。
+.opencode-go-usage {
+  margin: -6px 16px 6px;
+  overflow: hidden;
+  text-align: center;
+  color: var(--b3-theme-on-surface);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: text;
+
+  &:hover {
+    color: var(--b3-theme-primary);
+  }
+
+  &--error {
+    opacity: 0.7;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--b3-theme-primary);
+    outline-offset: 2px;
+  }
+}
+
+// 进度条：与内核自带的 `.agent-token-popup__bar` 采用同一套视觉规格
+// （高 4px、圆角 2px、轨道 --b3-border-color、填充 --b3-theme-primary）。
+.opencode-go-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--b3-border-color);
+  overflow: hidden;
+
+  & > span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--b3-theme-primary);
+  }
+}
+
+.opencode-go-dialog {
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--b3-border-color);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 20px;
+  }
+
+  &__label {
+    flex: none;
+    width: 88px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+  }
+
+  &__session {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: var(--b3-font-family-code);
+    user-select: text;
+  }
+
+  &__windows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 0;
+  }
+
+  &__window-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  &__window-value {
+    color: var(--b3-theme-on-surface);
+  }
+
+  &__window-foot {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+  }
+
+  &__limited {
+    margin-right: 6px;
+    color: var(--b3-theme-error);
+  }
+
+  &__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--b3-border-color);
+  }
+
+  &__updated {
+    font-size: 12px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+  }
+
+  &__error {
+    margin-top: 12px;
+    padding: 8px;
+    border-radius: var(--b3-border-radius);
+    background: var(--b3-theme-surface-lighter);
+    color: var(--b3-theme-error);
+    font-size: 12px;
+    line-height: 18px;
+    word-break: break-all;
+    user-select: text;
+  }
+}
+
+// 设置面板里的只读自检区。
+.opencode-go-check {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 18px;
+
+  &__row {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__label {
+    flex: none;
+    width: 96px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+  }
+
+  &__value {
+    flex: 1;
+    user-select: text;
+  }
 }
