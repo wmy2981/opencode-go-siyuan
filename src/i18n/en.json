@@ -65,7 +65,7 @@
   "settings.repairTip": "Fills in missing required headers and endpoint fields and strips blanks/zero width characters from the API key; a deleted provider is rebuilt, and a single existing entry on the same endpoint is adopted instead of duplicated.",
   "settings.repairAction": "Repair now",
   "settings.repairDone": "The provider config has been repaired",
-  "settings.headerStrategy": "Request header policy",
+  "settings.headerStrategy": "Dynamic x-opencode-session header",
   "settings.headerStrategyTip": "How x-opencode-session is filled: when on, every conversation sends its own stable ID, written before the request leaves. When off, the static ID below is used for everything.",
   "settings.staticSessionId": "Static session ID",
   "settings.staticSessionIdTip": "Used when per-conversation sending is off; leave empty to generate an installation level ID.",

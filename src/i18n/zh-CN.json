@@ -65,7 +65,7 @@
   "settings.repairTip": "补齐缺失的必需请求头与端点、清理 API Key 里的空白/零宽字符；供应商被删除时会重建，同端点已有条目则直接接管，不重复创建。",
   "settings.repairAction": "立即修复",
   "settings.repairDone": "供应商配置已修复",
-  "settings.headerStrategy": "请求头策略",
+  "settings.headerStrategy": "动态 x-opencode-session 请求头",
   "settings.headerStrategyTip": "x-opencode-session 的取值策略：开启后每段对话发送该对话自己的稳定 ID（在请求发出前写入变量）；关闭则统一发送下面的静态 ID。",
   "settings.staticSessionId": "静态会话 ID",
   "settings.staticSessionIdTip": "关闭按会话发送时使用；留空则自动生成一个安装级 ID。",

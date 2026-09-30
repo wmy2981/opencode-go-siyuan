@@ -89,7 +89,7 @@ installation-level id is sent for everything.
 | --- | --- | --- |
 | *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
 | Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
-| Request header policy | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. |
+| Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. |
 | Static session ID | empty | Used when the switch above is off; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
