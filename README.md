@@ -76,6 +76,23 @@ Before a request to `/api/ai/agent/chat` (or `/api/ai/editor/chat`) is sent, the
 changed, and only then lets the request through. The value is therefore correct from the first turn
 and stays stable for the rest of the conversation.
 
+Requests that other plugins relay to the same endpoint get the installation-level id instead. Such a
+plugin does not go through `/api/ai/*/chat`: it builds its own headers and hands the call to
+`/api/network/forwardProxy`, resolving `{{vars.OPENCODE_GO_SESSION}}` itself — that is the path
+[ai-title-siyuan](https://github.com/wmy2981/ai-title-siyuan) takes to generate note titles. Those
+requests have no conversation to belong to, so the plugin switches the variable back to the
+installation-level id before they leave, and repeating the same call keeps hitting the same session.
+Fill this into that plugin's **custom request headers**:
+
+```json
+{
+  "x-opencode-session": "{{vars.OPENCODE_GO_SESSION}}"
+}
+```
+
+The plugin's own `/v1/usage` query is exempt from this rule: the value it sends is the one the
+detail dialog shows.
+
 **Known limitation:** SiYuan's kernel cannot inject a per-request header on its own. The plugin
 therefore uses the variable channel plus a narrowly scoped `window.fetch` interception, restores
 `fetch` on unload, and falls back to the old value if writing the variable fails — a missing or
@@ -90,8 +107,8 @@ installation-level id is sent for everything.
 | *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
 | Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
 | Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
-| Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. |
-| Static session ID | empty | Used when the switch above is off; an installation-level id is generated when left empty. |
+| Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. Requests other plugins relay to the same endpoint always use the static id. |
+| Static session ID | empty | Used when the switch above is off, and by other plugins relaying requests to the same endpoint; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
 | Show usage in the agent panel | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
