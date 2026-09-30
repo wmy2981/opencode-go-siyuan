@@ -89,13 +89,13 @@ installation-level id is sent for everything.
 | --- | --- | --- |
 | *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
 | Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
+| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
 | Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. |
 | Static session ID | empty | Used when the switch above is off; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
 | Show usage in the agent panel | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
 | Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
-| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
 | Debug log | off | Prefixed diagnostics in the developer console. Does not contain the API key. |
 

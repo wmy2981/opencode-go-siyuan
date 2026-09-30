@@ -448,6 +448,13 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }),
     });
     setting.addItem({
+        title: t("settings.usageDialog"),
+        description: t("settings.usageDialogTip"),
+        createActionElement: () => buttonElement(t("settings.usageDialogAction"), async () => {
+            host.openUsage();
+        }),
+    });
+    setting.addItem({
         title: t("settings.headerStrategy"),
         description: t("settings.headerStrategyTip"),
         createActionElement: () => switchElement(draft.dynamicSession, (checked) => {
@@ -491,13 +498,6 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("settings.topBarButtonTip"),
         createActionElement: () => switchElement(draft.topBarButton, (checked) => {
             draft.topBarButton = checked;
-        }),
-    });
-    setting.addItem({
-        title: t("settings.usageDialog"),
-        description: t("settings.usageDialogTip"),
-        createActionElement: () => buttonElement(t("settings.usageDialogAction"), async () => {
-            host.openUsage();
         }),
     });
     setting.addItem({
