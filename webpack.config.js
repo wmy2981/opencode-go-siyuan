@@ -26,6 +26,17 @@ const packageImagePatterns = [
 
 // 供 AI 设置页的 provider 卡片直接引用的图标：思源把插件目录托管在 /plugins/<name>/ 下，
 // 所以这个文件必须出现在包根目录，前端才能用 <img src="/plugins/opencode-go-siyuan/..."> 加载。
+// 顶栏按钮的品牌图标也从这一份文件来（构建时抽出内层图形注入源码），不另存一份路径数据。
+const providerIcon = (() => {
+    const source = path.join("assets", "provider-icon.svg");
+    const markup = fs.readFileSync(source, "utf8");
+    const inner = /<svg[^>]*\sviewBox="([^"]+)"[^>]*>([\s\S]*?)<\/svg>/i.exec(markup);
+    if (!inner) {
+        throw new Error(`${source} 里找不到带 viewBox 的内层 <svg>`);
+    }
+    return {viewBox: inner[1], body: inner[2].trim()};
+})();
+
 const extraAssetPatterns = ["provider-icon.svg"]
     .filter((fileName) => fs.existsSync(path.join("assets", fileName)))
     .map((fileName) => ({from: path.join("assets", fileName), to: "./dist/"}));
@@ -33,10 +44,13 @@ const extraAssetPatterns = ["provider-icon.svg"]
 module.exports = (env, argv) => {
     const production = argv.mode === "production";
     const plugins = [
-        // 插件标识里的版本号在构建时从 plugin.json 注入，源码里不再写死版本字面量。
-        // 开发与生产构建都注入，避免两条路径行为不一致。
+        // 构建期常量：插件标识里的版本号取自 plugin.json（源码里不再写死版本字面量），
+        // 顶栏按钮的品牌图标图形取自 assets/provider-icon.svg。开发与生产构建都注入，
+        // 避免两条路径行为不一致。
         new webpack.DefinePlugin({
             __PLUGIN_VERSION__: JSON.stringify(pluginManifest.version),
+            __PROVIDER_ICON_VIEWBOX__: JSON.stringify(providerIcon.viewBox),
+            __PROVIDER_ICON_BODY__: JSON.stringify(providerIcon.body),
         }),
         new MiniCssExtractPlugin({
             filename: production ? "dist/index.css" : "index.css",

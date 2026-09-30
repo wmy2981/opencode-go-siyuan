@@ -21,12 +21,19 @@ const JUMP_INTERVAL_MS = 100;
 
 /** 顶栏用量按钮在插件内的唯一 id：宿主按它去重、排序，并按它持久化显隐状态。 */
 const TOP_BAR_USAGE_ID = "usage";
+/** 顶栏按钮引用的品牌图标 id；它由下面的 sprite 注册，改这里就要同时改 sprite 里的 id。 */
+const TOP_BAR_USAGE_ICON_ID = "iconOpenCodeGo";
 /**
- * 顶栏图标用 Lucide 的 gauge（https://lucide.dev/icons/gauge），只把线宽调成 1.7 与思源内置
- * 图标一致。`addTopBar` 对以 `<svg` 开头的取值原样插入，尺寸由 `.toolbar__item svg` 与移动端
- * 插件菜单的 `.b3-menu__icon` 决定，所以这里不写 width/height。
+ * 顶栏按钮的品牌图标。
+ *
+ * 图形与 `assets/provider-icon.svg`（供应商卡片加载的同一份官方 OpenCode 图标）同源：webpack
+ * 在构建时从该文件抽出内层图形与 viewBox 注入（`__PROVIDER_ICON_*`），源码里不再抄一份路径
+ * 数据，官方图标换版本时不会漏改。经 `addIcons` 注册成 sprite 后由 `addTopBar` 以图标 id 引用，
+ * 与思源内置图标走同一条渲染路径（尺寸交给宿主样式），图形自带背景与描边，不依赖主题的
+ * `currentColor`。
  */
-const TOP_BAR_USAGE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>';
+const TOP_BAR_USAGE_ICON = '<symbol id="' + TOP_BAR_USAGE_ICON_ID + '" viewBox="' +
+    __PROVIDER_ICON_VIEWBOX__ + '">' + __PROVIDER_ICON_BODY__ + "</symbol>";
 
 const isMobileFrontend = (): boolean => {
     const frontend = getFrontend();
@@ -54,6 +61,8 @@ export default class OpenCodeGoPlugin extends Plugin {
     private iconPatcher: ProviderIconPatcher | null = null;
     private timer = 0;
     private lastUsage: UsageResult | null = null;
+    /** 品牌图标 sprite 是否已经注册（`addIcons` 每次加载只应调用一次）。 */
+    private topBarIconReady = false;
 
     private readonly handleAIConfigChanged = (): void => {
         void this.onConfigChanged();
@@ -242,16 +251,22 @@ export default class OpenCodeGoPlugin extends Plugin {
      * 按设置注册或摘掉顶栏的用量按钮（默认关闭）。
      *
      * `id` 固定，宿主按它去重：开启时重复调用只是原地更新，不会多出第二个按钮；关闭时摘掉。
-     * 插件被禁用或卸载时，顶栏条目由宿主统一清理，这里不重复处理。
+     * 插件被禁用或卸载时，顶栏条目与图标 sprite 都由宿主统一清理，这里不重复处理。
      */
     private syncTopBarButton(): void {
         if (!this.settings.topBarButton) {
             this.removeTopBar(TOP_BAR_USAGE_ID);
             return;
         }
+        if (!this.topBarIconReady) {
+            // 只注册一次：`addIcons` 会往宿主的 <svg data-name="<插件名>"><defs> 里追加，
+            // 重复调用会插出第二个同名 symbol。
+            this.addIcons(TOP_BAR_USAGE_ICON);
+            this.topBarIconReady = true;
+        }
         this.addTopBar({
             id: TOP_BAR_USAGE_ID,
-            icon: TOP_BAR_USAGE_ICON,
+            icon: TOP_BAR_USAGE_ICON_ID,
             // 标题同时是按钮的 aria-label/提示文案，与弹窗标题一致。
             title: this.t("dialog.title"),
             callback: () => this.dialog?.open(),
