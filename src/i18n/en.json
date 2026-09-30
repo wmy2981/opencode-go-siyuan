@@ -76,7 +76,7 @@
   "settings.ua.custom": "Custom",
   "settings.customUserAgent": "Custom User-Agent",
   "settings.customUserAgentTip": "Only used when the previous item is set to custom.",
-  "settings.inlineUsage": "Show usage under the input",
+  "settings.inlineUsage": "Show usage in the agent panel",
   "settings.inlineUsageTip": "Only shown while the OpenCode Go endpoint is in use; click it for details.",
   "settings.topBarButton": "Top bar usage button",
   "settings.topBarButtonTip": "Registers a plugin button in the top bar that opens the usage dialog; off by default.",

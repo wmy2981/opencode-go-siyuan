@@ -93,7 +93,7 @@ installation-level id is sent for everything.
 | Static session ID | empty | Used when the switch above is off; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
-| Show usage under the input | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
+| Show usage in the agent panel | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
 | Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
 | Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
