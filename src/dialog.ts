@@ -94,7 +94,7 @@ export class UsageDialog {
         <div class="opencode-go-dialog__windows" data-role="windows"></div>
         <div class="opencode-go-dialog__foot">
             <span class="opencode-go-dialog__updated" data-role="updated"></span>
-            <button class="b3-button b3-button--outline" data-action="refresh" type="button">${t("dialog.refresh")}</button>
+            <button class="block__icon block__icon--show ariaLabel" data-position="north" aria-label="${t("dialog.refresh")}" data-action="refresh" type="button"><svg><use xlink:href="#iconRefresh"></use></svg></button>
         </div>
         <div class="opencode-go-dialog__error fn__none" data-role="error"></div>
     </div>
@@ -198,10 +198,13 @@ export class UsageDialog {
         }
         this.refreshing = true;
         const button = this.dialog?.element.querySelector<HTMLButtonElement>('[data-action="refresh"]');
-        const label = button ? button.textContent : "";
+        const icon = button?.querySelector("svg");
         if (button) {
             button.disabled = true;
-            button.textContent = this.host.t("dialog.refreshing");
+            button.setAttribute("aria-label", this.host.t("dialog.refreshing"));
+            // 转动用思源自带的 `fn__rotate`（`animation: rotate 2s infinite linear`），
+            // 与内核自己的刷新按钮同一套动效，插件不再自造关键帧。
+            icon?.classList.add("fn__rotate");
         }
         try {
             await this.host.refresh();
@@ -210,7 +213,8 @@ export class UsageDialog {
             this.refreshing = false;
             if (button?.isConnected) {
                 button.disabled = false;
-                button.textContent = label;
+                button.setAttribute("aria-label", this.host.t("dialog.refresh"));
+                icon?.classList.remove("fn__rotate");
             }
         }
     }
