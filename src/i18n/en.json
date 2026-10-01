@@ -27,6 +27,8 @@
   "dialog.copyFailed": "Copy failed; select the text manually",
   "dialog.error": "Error detail",
 
+  "duration.day": "{d}d",
+  "duration.hour": "{h}h",
   "duration.hourMinute": "{h}h {m}m",
   "duration.minute": "{m}m",
   "duration.second": "{s}s",

@@ -27,6 +27,8 @@
   "dialog.copyFailed": "复制失败，请手动选择文本",
   "dialog.error": "错误详情",
 
+  "duration.day": "{d} 天",
+  "duration.hour": "{h} 小时",
   "duration.hourMinute": "{h} 小时 {m} 分",
   "duration.minute": "{m} 分",
   "duration.second": "{s} 秒",

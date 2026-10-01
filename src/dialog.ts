@@ -36,6 +36,32 @@ export const formatDuration = (milliseconds: number, t: Translate): string => {
     return t("duration.second", {s: seconds});
 };
 
+/**
+ * 把毫秒差格式化成「2 天 10 小时 30 分」/「2d 10h 30m」，供周/月这类长跨度窗口使用。
+ * 为 0 的单位整个不出现（「30 分后重置」而不是「0 天 0 小时 30 分后重置」），
+ * 不足一分钟时仍按秒给出，免得只剩一句「0 分」。各单位的写法与顺序交给 i18n。
+ */
+export const formatSpanDuration = (milliseconds: number, t: Translate): string => {
+    const totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const parts: string[] = [];
+    if (days > 0) {
+        parts.push(t("duration.day", {d: days}));
+    }
+    if (hours > 0) {
+        parts.push(t("duration.hour", {h: hours}));
+    }
+    if (minutes > 0) {
+        parts.push(t("duration.minute", {m: minutes}));
+    }
+    if (parts.length === 0) {
+        return t("duration.second", {s: totalSeconds % 60});
+    }
+    return parts.join(" ");
+};
+
 /** 用量详情窗口；用思源原生 Dialog，动作区自建。 */
 export class UsageDialog {
     private dialog: Dialog | null = null;
@@ -171,12 +197,12 @@ export class UsageDialog {
         <span class="opencode-go-dialog__window-value">${limited}${percentText}</span>
     </div>
     <div class="opencode-go-bar"><span style="width:${typeof percent === "number" ? percent : 0}%"></span></div>
-    <div class="opencode-go-dialog__window-foot">${this.footText(window?.resetsAt)}</div>
+    <div class="opencode-go-dialog__window-foot">${this.footText(key, window?.resetsAt)}</div>
 </div>`;
         }).join("");
     }
 
-    private footText(resetsAt: string | undefined): string {
+    private footText(key: UsageWindowKey, resetsAt: string | undefined): string {
         const t = this.host.t;
         if (!resetsAt) {
             return t("dialog.resetUnknown");
@@ -189,7 +215,9 @@ export class UsageDialog {
         if (delta <= 0) {
             return t("dialog.resetUnknown");
         }
-        return t("dialog.reset", {time: formatDuration(delta, t)});
+        // 5 小时窗口最多也就几小时，保持「小时 + 分」；周/月跨度到天，按「天 小时 分」显示。
+        const time = key === "rolling" ? formatDuration(delta, t) : formatSpanDuration(delta, t);
+        return t("dialog.reset", {time});
     }
 
     private async refreshAndRender(): Promise<void> {
