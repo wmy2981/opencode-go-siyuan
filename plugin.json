@@ -2,7 +2,7 @@
   "name": "opencode-go-siyuan",
   "author": "wmy2981",
   "url": "https://github.com/wmy2981/opencode-go-siyuan",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "3.8.5",
   "backends": [
     "all"

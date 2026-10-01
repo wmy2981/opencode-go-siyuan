@@ -1,6 +1,6 @@
 {
   "name": "opencode-go-siyuan",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A SiYuan plugin that ships the OpenCode Go provider, a stable per-conversation x-opencode-session header and the rolling / weekly / monthly usage",
   "main": "dist/index.js",
   "private": false,
