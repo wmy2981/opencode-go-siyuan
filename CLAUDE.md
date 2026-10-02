@@ -16,6 +16,8 @@ The version string is authoritative in `package.json` and `plugin.json`; CI fail
 
 Do not tag or publish by hand: pushing to `main` runs `.github/workflows/cd.yml`, which rejects a version lower than the newest `v*` tag, skips the release when it is unchanged, and otherwise creates the tag and the GitHub release itself. Release notes are generated from commit subjects by `scripts/release-notes.mjs`.
 
+Version bumps are the maintainer's call, never the agent's: do not touch `version` in `package.json` or `plugin.json`, and do not add a `chore(release)` commit, unless the maintainer asks for that bump in the current request. A fix or feature lands at the version already in the tree; bumping and releasing are separate steps the maintainer decides on.
+
 ## Conventions
 
 - Commit subjects are Conventional Commits in English and lowercase, with a scope naming the module touched (`provider`, `session`, `usage`, `inline`, `settings`, `dialog`, `preview`, `release`). Anything outside that shape is dumped into an "Other Changes" bucket in the release notes.
