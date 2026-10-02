@@ -15,9 +15,22 @@ import {openSettingsPanel, openWithoutAutofocus} from "./settingsPanel";
 import type {LogFn, PluginSettings, UsageResult} from "./types";
 import {UsageClient} from "./usage";
 
-/** 跳到供应商详情页时等待卡片渲染的上限与轮询间隔。 */
+/** 跳到供应商详情页时等待宿主渲染的上限与轮询间隔。 */
 const JUMP_TIMEOUT_MS = 3000;
 const JUMP_INTERVAL_MS = 100;
+
+/**
+ * 「设置 - 人工智能」这一页的入口形态，以及该页挂载完成的标志。
+ *
+ * 入口只在新宿主上才用得到（见 `openAiProvidersPage()`）：桌面端是设置弹窗侧栏的页签项
+ * （`config/index.ts` 渲染的 `.b3-list-item`，带 `b3-list-item--focus` 的那个就是当前页，
+ * 不再重复点），移动端是主菜单里的同类设置项（`mobile/menu/mainMenu.ts` 按设置页定义渲染成
+ * `data-type="setting-tab"` 的条目）。`#aiProviderCards` 是这页里由 `genProviderCardsHtml()`
+ * 生成的卡片容器，它出现就说明页已挂载。
+ */
+const AI_TAB_SELECTOR = ".config__side .b3-list-item[data-name='ai']:not(.b3-list-item--focus), " +
+    "#menu .b3-menu__item[data-type='setting-tab'][data-name='ai']";
+const AI_PROVIDERS_SELECTOR = "#aiProviderCards";
 
 /** 顶栏用量按钮在插件内的唯一 id：宿主按它去重、排序，并按它持久化显隐状态。 */
 const TOP_BAR_USAGE_ID = "usage";
@@ -41,11 +54,13 @@ const isMobileFrontend = (): boolean => {
 };
 
 /**
- * 打开思源原生的设置弹窗并切到指定页签。
+ * 打开思源原生的设置，并请求切到指定页签。
  *
- * 这就是官方插件 API 里的 `openSetting`（`app/src/plugin/API.ts` 的 `createAPI()` 暴露了它），
- * 运行时签名是 `openSetting(app, tab?)`，桌面端与移动端各走各的原生实现；
- * 只是 npm 包的类型声明还停在 `openSetting(app)`，所以这里显式放宽一次。
+ * 这就是官方插件 API 里的 `openSetting`（`app/src/plugin/API.ts` 的 `createAPI()` 暴露了它）。
+ * 页签参数在两代宿主上待遇不同，插件因此同时留着新旧两条路径（见 `openProviderSetting()`）：
+ * 3.8.7-alpha.1 及以前它等价于原生 `openSetting(app, tab?)`，页签生效；3.8.7-alpha.2 起换成了
+ * 不收页签的 `openPluginSetting(app)`，第二个参数被忽略。npm 包的类型声明一直是
+ * `openSetting(app)`，所以这里显式放宽一次。
  */
 const openNativeSetting = openSetting as unknown as (app: unknown, tab: string) => void;
 
@@ -210,17 +225,66 @@ export default class OpenCodeGoPlugin extends Plugin {
     /**
      * 指引第 2 步：打开思源原生的「设置 - 人工智能」，并点进这个供应商的设置页。
      *
-     * 进入供应商详情页只能模拟一次点击：`aiProviderUi.ts` 的卡片是事件委托在
-     * `#aiProviderCardsBlock` 上的普通 click，点它完全等价于用户自己点了一下；
-     * `config/index.ts` 里也明确写了侧栏页签「兼容社区 JS 代码片段模拟点击」。
+     * 新旧两代宿主都支持，所以两条路径都留着，按宿主行为自动选择：
+     *
+     * - 旧路径（3.8.7-alpha.1 及以前）：插件 API 的 `openSetting` 就是原生
+     *   `openSetting(app, tab?)`（`app/src/plugin/API.ts` 里直接就是 `openSetting,`），页签生效，
+     *   设置弹窗直接落在「人工智能」页，`#aiProviderCards` 立刻就在当前文档里，只要再点一次卡片。
+     *   下面那行带 `"ai"` 的调用就是给这代宿主用的 —— 新宿主会忽略它，但别当无效参数删掉。
+     * - 新路径（3.8.7-alpha.2 起，含 dev 上的 alpha.3）：同一个 API 换成了不收页签的
+     *   `openPluginSetting(app)`（`app/src/plugin/API.ts` 里 `openSetting: openPluginSetting`），
+     *   桌面端停在「设置 - 编辑器」、移动端只把主菜单推出来，页签得自己补点一次。
+     *
+     * 走哪条用行为判断、不比版本号：先看「人工智能」页是否已经挂载，没挂载才去点页签 ——
+     * alpha/beta 版本串不好比，远程内核与以后的版本也不该写死。
      */
     private async openProviderSetting(): Promise<void> {
         const providerId = this.provider?.inspect().providerId ?? "";
         openNativeSetting(this.app, "ai");
+        await this.openAiProvidersPage();
         if (!providerId) {
             return;
         }
         await this.clickProviderCard(providerId);
+    }
+
+    /**
+     * 确保「设置 - 人工智能」已经挂载：旧宿主上它已经在了，直接返回；新宿主上补点一次页签入口。
+     *
+     * 页签项与供应商卡片一样是普通 click：桌面端设置弹窗的侧栏项由 `config/index.ts` 直接挂监听
+     * （那里写明「兼容社区 JS 代码片段模拟点击，不做事件委托」），移动端主菜单里的设置项由
+     * `mobile/menu/index.ts` 冒泡到 `#menu` 上的委托处理。只点一次：页签项与它的监听同时创建
+     * （移动端的委托更是启动时就挂在 `#menu` 上），点中即生效，重点只会把同一页重新挂载一遍、
+     * 移动端还会再叠一层面板。超时就安静放弃，不打断用户手头的操作。
+     */
+    private openAiProvidersPage(): Promise<void> {
+        return new Promise((resolve) => {
+            const deadline = Date.now() + JUMP_TIMEOUT_MS;
+            let clicked = false;
+            const tick = (): void => {
+                if (document.querySelector(AI_PROVIDERS_SELECTOR)) {
+                    this.log("settings", clicked
+                        ? "the ai settings page showed up after clicking its tab"
+                        : "this host opened the ai settings page on its own");
+                    resolve();
+                    return;
+                }
+                if (!clicked) {
+                    const tab = document.querySelector<HTMLElement>(AI_TAB_SELECTOR);
+                    if (tab) {
+                        clicked = true;
+                        tab.click();
+                    }
+                }
+                if (Date.now() > deadline) {
+                    this.log("settings", "the ai settings page did not show up in time");
+                    resolve();
+                    return;
+                }
+                window.setTimeout(tick, JUMP_INTERVAL_MS);
+            };
+            window.setTimeout(tick, JUMP_INTERVAL_MS);
+        });
     }
 
     /** 等供应商卡片渲染出来再点它；超时就安静放弃，不打断用户手头的操作。 */
@@ -229,7 +293,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             const deadline = Date.now() + JUMP_TIMEOUT_MS;
             const tick = (): void => {
                 const card = document.querySelector<HTMLElement>(
-                    '#aiProviderCards .b3-card[data-provider-id="' + CSS.escape(providerId) + '"]');
+                    AI_PROVIDERS_SELECTOR + ' .b3-card[data-provider-id="' + CSS.escape(providerId) + '"]');
                 if (card) {
                     card.scrollIntoView({block: "nearest"});
                     card.click();
