@@ -5,6 +5,8 @@ import type {LogFn, UsageResult} from "./types";
 const INPUT_AREA_SELECTOR = ".sy__agentChat .agent-chat__input-area";
 const NODE_ATTR = "data-opencode-go-usage";
 const NODE_CLASS = "opencode-go-usage";
+/** 按下到抬起之间位移超过这个像素数就算「滑动」，不算「点击」（与思源键盘工具栏同一取值）。 */
+const TAP_SLOP = 10;
 
 export interface InlineUsageHost {
     t: Translate;
@@ -96,25 +98,48 @@ export class InlineUsage {
         node.setAttribute(NODE_ATTR, "true");
         node.setAttribute("tabindex", "0");
         node.setAttribute("role", "button");
-        // 用 pointerdown 而不是 click：智能体面板里流式输出时每一帧都在改 DOM，
-        // 节点只要在按下与抬起之间被挪动过，click 就永远等不到 —— 表现正是
-        // 「点了但没有弹窗」。pointerdown 在按下的那一刻就触发，不受后续重绘影响。
+        // 用 click 而不是「按下就弹窗」：触屏上想从这一行往下滚动的第一下也落在节点上，
+        // 按下即弹窗等于手指一碰就出弹窗（旧实现还在 touchstart 上 preventDefault，顺手把
+        // 滚动也一起掐掉了）。滑动/滚动结束后浏览器根本不会补 click，所以判定交给浏览器。
+        // 弹窗由这次 click 自己插进 DOM，这一下 click 已经派发完毕，不会再落到刚出现的
+        // `.b3-dialog__scrim` 上（`app/src/dialog/index.ts` 给它绑了「点一下就 destroy」），
+        // 因此这里不需要任何 preventDefault；面板整体重建换掉节点时也不用接管状态 ——
+        // click 是在抬起的那一刻重新命中的。内核自己的 token 浮层就是这么绑的
+        // （`app/src/layout/dock/agent/AgentChat.ts` 里 tokenDisplayEl 的 click）。
+        // 自己再记一次位移，只为兜住「鼠标按住划选」这类浏览器照样会派发 click 的情况
+        // （思源自己的键盘工具栏也用 10px 判定位移，见 `app/src/mobile/util/keyboardToolbar.ts`）。
+        let pointerId = -1;
+        let startX = 0;
+        let startY = 0;
+        let moved = false;
         node.addEventListener("pointerdown", (event) => {
             if (event.button !== 0) {
                 return;
             }
-            event.preventDefault();
-            this.host.onClick();
+            pointerId = event.pointerId;
+            startX = event.clientX;
+            startY = event.clientY;
+            moved = false;
         });
-        // 移动端：tap 在 touchend 之后还会补发一次「此刻」重新命中的合成 click。弹窗是在
-        // pointerdown 里插进 DOM 的，等这次 click 到达时，手指下面已经是整屏的
-        // `.b3-dialog__scrim`（`app/src/dialog/index.ts` 给它绑了「点一下就 destroy」），
-        // 于是弹窗刚出现就被关掉 —— 桌面端不会：按下与抬起的目标不同，click 落在两者的
-        // 共同祖先上。在 touchstart 上取消默认行为可以从源头掐掉这一串兼容鼠标事件
-        // （pointerdown 在 touchstart 之前触发，打开弹窗不受影响）。
-        node.addEventListener("touchstart", (event) => {
-            event.preventDefault();
-        }, {passive: false});
+        node.addEventListener("pointermove", (event) => {
+            if (event.pointerId !== pointerId) {
+                return;
+            }
+            if (Math.abs(event.clientX - startX) > TAP_SLOP || Math.abs(event.clientY - startY) > TAP_SLOP) {
+                moved = true;
+            }
+        });
+        node.addEventListener("click", (event) => {
+            const tapped = !moved;
+            pointerId = -1;
+            moved = false;
+            // 不冒泡：面板自己的 click 处理（`AgentChat.ts:1007`）会给输入框抢焦点，
+            // 移动端会连带把软键盘弹回来，盖住刚打开的弹窗。
+            event.stopPropagation();
+            if (tapped) {
+                this.host.onClick();
+            }
+        });
         node.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
