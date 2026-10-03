@@ -81,11 +81,12 @@ export class InlineUsage {
         }
         const panel = anchor.closest<HTMLElement>(".sy__agentChat");
         if (this.node?.isConnected) {
-            // 只把它挪回锚点后面，绝不重建：重建会换掉节点与它上面的监听器，
-            // 用户按下与抬起之间一旦发生这种替换，click 就永远不会产生。
-            if (anchor.nextElementSibling !== this.node) {
-                anchor.insertAdjacentElement("afterend", this.node);
-            }
+            // 已经插好就一个字节都不动：`insertAdjacentElement` 会先把节点摘下来再插回去，
+            // 而浏览器在「按下与抬起之间 mousedown 目标被摘除」时根本不派发 click —— 桌面端
+            // 按住那 100 毫秒里只要发生一次这种搬家，这次点击就白点了（表现正是「点了没弹窗」）。
+            // 输入区后面那一格是公开位置，别的插件同样会往里插一行，一旦这里发现位置被占就挪
+            // 回去，两边就会以每帧一次的频率互相搬家，按住期间必然出错。因此这里只认「还在
+            // 文档里」，位置被挤到下一格也随它去；只有节点真的脱离了文档（面板被重建）才重建。
             this.observePanel(panel);
             this.render();
             return;
@@ -104,7 +105,8 @@ export class InlineUsage {
         // 弹窗由这次 click 自己插进 DOM，这一下 click 已经派发完毕，不会再落到刚出现的
         // `.b3-dialog__scrim` 上（`app/src/dialog/index.ts` 给它绑了「点一下就 destroy」），
         // 因此这里不需要任何 preventDefault；面板整体重建换掉节点时也不用接管状态 ——
-        // click 是在抬起的那一刻重新命中的。内核自己的 token 浮层就是这么绑的
+        // click 是在抬起的那一刻重新命中的（前提是这一行在按住期间没被摘下来，见上面 apply()
+        // 里「绝不搬动已插入的节点」的说明）。内核自己的 token 浮层就是这么绑的
         // （`app/src/layout/dock/agent/AgentChat.ts` 里 tokenDisplayEl 的 click）。
         // 自己再记一次位移，只为兜住「鼠标按住划选」这类浏览器照样会派发 click 的情况
         // （思源自己的键盘工具栏也用 10px 判定位移，见 `app/src/mobile/util/keyboardToolbar.ts`）。
