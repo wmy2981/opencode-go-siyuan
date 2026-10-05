@@ -1,6 +1,7 @@
 import {Dialog, showMessage} from "siyuan";
 import {copyText} from "./clipboard";
 import type {Translate} from "./i18n";
+import {bindBottomSheet} from "./sheet";
 import {USAGE_WINDOW_KEYS} from "./usage";
 import {isUsageFailure} from "./types";
 import type {LogFn, UsageResult, UsageTarget, UsageWindowKey} from "./types";
@@ -62,9 +63,15 @@ export const formatSpanDuration = (milliseconds: number, t: Translate): string =
     return parts.join(" ");
 };
 
-/** 用量详情窗口；用思源原生 Dialog，动作区自建。 */
+/**
+ * 用量详情窗口；用思源原生 Dialog，动作区自建。
+ *
+ * 移动端是思源原生的底部面板（从底部滑出、下拉关闭，见 `sheet.ts`），桌面端仍是居中的详情窗口。
+ */
 export class UsageDialog {
     private dialog: Dialog | null = null;
+    /** 底部面板的绑定解绑函数；只有移动端会有。 */
+    private sheet: (() => void) | null = null;
     private refreshing = false;
 
     constructor(private readonly host: UsageDialogHost) {
@@ -73,7 +80,8 @@ export class UsageDialog {
     open(): void {
         if (this.dialog && !this.dialog.element.isConnected) {
             // 弹窗被别处销毁过（元素已脱离文档）时，缓存的实例只会把内容画进一个看不见的
-            // 节点里；这时当作没开过，重建一个。
+            // 节点里；这时当作没开过，重建一个。销毁回调没机会跑，面板绑定得在这里摘掉。
+            this.disposeSheet();
             this.dialog = null;
         }
         if (this.dialog) {
@@ -84,12 +92,20 @@ export class UsageDialog {
         }
         this.dialog = new Dialog({
             title: this.host.t("dialog.title"),
-            width: this.host.isMobile() ? "92vw" : "620px",
+            // 底部面板撑满整行（容器自身的 max-width 会避开刘海安全区），桌面端仍是固定宽度的窗口。
+            width: this.host.isMobile() ? "100vw" : "620px",
+            // 底部面板靠下拉或点遮罩关闭，右上角不再画关闭按钮（内核自己的移动端底部面板同样如此）。
+            // 内核的 Dialog 本来也只在移动端画这个按钮（桌面端一直是 `fn__none`），这里等于整个去掉。
+            hideCloseIcon: this.host.isMobile(),
             content: this.html(),
             destroyCallback: () => {
+                this.disposeSheet();
                 this.dialog = null;
             },
         });
+        if (this.host.isMobile()) {
+            this.sheet = bindBottomSheet(this.dialog, () => this.close());
+        }
         this.bind(this.dialog);
         this.render();
         void this.refreshAndRender();
@@ -105,6 +121,12 @@ export class UsageDialog {
         if (this.dialog) {
             this.render();
         }
+    }
+
+    /** 摘掉底部面板的视口与触摸监听；销毁回调与「已被别处销毁」的重建路径都会走这里，重复调用无副作用。 */
+    private disposeSheet(): void {
+        this.sheet?.();
+        this.sheet = null;
     }
 
     private html(): string {
