@@ -2,7 +2,7 @@
   "name": "opencode-go-siyuan",
   "author": "wmy2981",
   "url": "https://github.com/wmy2981/opencode-go-siyuan",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "minAppVersion": "3.8.5",
   "backends": [
     "all"
@@ -11,6 +11,7 @@
     "all"
   ],
   "disabledInPublish": true,
+  "settingsWindow": true,
   "displayName": {
     "default": "OpenCode Go",
     "zh-CN": "OpenCode Go"
