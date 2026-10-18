@@ -4,6 +4,7 @@ import type {Translate} from "./i18n";
 import type {ProviderCheck} from "./provider";
 import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "./settings";
 import type {
+    InlineWindowPreset,
     PluginSettings,
     UsageFailure,
     UsageResult,
@@ -505,6 +506,19 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("settings.inlineUsageTip"),
         createActionElement: () => switchElement(draft.inlineUsage, (checked) => {
             draft.inlineUsage = checked;
+        }),
+    });
+    setting.addItem({
+        title: t("settings.inlineWindows"),
+        description: t("settings.inlineWindowsTip"),
+        createActionElement: () => selectElement([
+            ["h5Week", t("settings.inlineWindows.h5Week")],
+            ["h5WeekMonth", t("settings.inlineWindows.h5WeekMonth")],
+            ["h5Month", t("settings.inlineWindows.h5Month")],
+            ["weekMonth", t("settings.inlineWindows.weekMonth")],
+            ["h5", t("settings.inlineWindows.h5")],
+        ], draft.inlineWindows, (value) => {
+            draft.inlineWindows = value as InlineWindowPreset;
         }),
     });
     setting.addItem({

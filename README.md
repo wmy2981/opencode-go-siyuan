@@ -117,6 +117,7 @@ installation-level id is sent for everything.
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
 | Show usage in the agent panel | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
+| Windows shown below the agent input | 5 hours and week | Which windows that line shows: 5 hours and week / 5 hours, week and month / 5 hours and month / week and month / 5 hours only. The dialog is unaffected. |
 | Usage display style | used | Whether the percentages in the dialog and on that line show the amount used or the amount left; the bar follows the same choice. |
 | Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |

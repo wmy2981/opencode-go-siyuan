@@ -14,7 +14,7 @@ import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from ".
 import {openSettingsPanel, openWithoutAutofocus} from "./settingsPanel";
 import {isUsageFailure} from "./types";
 import type {LogFn, PluginSettings, UsageFailure, UsageResult, UsageSnapshot} from "./types";
-import {UsageClient} from "./usage";
+import {INLINE_WINDOW_PRESETS, UsageClient} from "./usage";
 
 /** 跳到供应商详情页时等待宿主渲染的上限与轮询间隔。 */
 const JUMP_TIMEOUT_MS = 3000;
@@ -127,6 +127,7 @@ export default class OpenCodeGoPlugin extends Plugin {
         this.inline = new InlineUsage({
             t: this.t,
             active: () => !!this.provider?.isInUse(),
+            windows: () => INLINE_WINDOW_PRESETS[this.settings.inlineWindows],
             remaining: () => this.settings.usageStyle === "remaining",
             onClick: () => this.dialog?.open(),
             log: this.log,

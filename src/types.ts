@@ -72,6 +72,9 @@ export type UserAgentMode = "kernel" | "plugin" | "custom";
  */
 export type UsageStyle = "used" | "remaining";
 
+/** 输入框下方那一行显示哪些窗口；取值与设置项一一对应（见 `INLINE_WINDOW_PRESETS`）。 */
+export type InlineWindowPreset = "h5Week" | "h5WeekMonth" | "h5Month" | "weekMonth" | "h5";
+
 export interface PluginSettings {
     /**
      * 按会话写入变量，让 `x-opencode-session` 每段对话各不相同。
@@ -86,6 +89,8 @@ export interface PluginSettings {
     customUserAgent: string;
     /** 在智能体输入框下方显示用量文本。 */
     inlineUsage: boolean;
+    /** 那一行里显示哪几个窗口；默认「5 小时和周」。 */
+    inlineWindows: InlineWindowPreset;
     /** 百分比按「已用量」还是「剩余量」显示。 */
     usageStyle: UsageStyle;
     /** 在顶栏注册一个打开用量弹窗的插件按钮；默认关闭。 */

@@ -8,13 +8,13 @@ const NODE_ATTR = "data-opencode-go-usage";
 const NODE_CLASS = "opencode-go-usage";
 /** 按下到抬起之间位移超过这个像素数就算「滑动」，不算「点击」（与思源键盘工具栏同一取值）。 */
 const TAP_SLOP = 10;
-/** 这一行里出现的窗口顺序；默认与窗口选择器里的「5 小时和周」一致。 */
-const INLINE_WINDOWS: UsageWindowKey[] = ["rolling", "weekly"];
 
 export interface InlineUsageHost {
     t: Translate;
     /** 当前是否通过 OpenCode Go 端点对话。 */
     active: () => boolean;
+    /** 这一行要显示哪些窗口、按什么顺序（由设置里的「详细程度」决定）。 */
+    windows: () => UsageWindowKey[];
     /** 百分比按「已用量」还是「剩余量」显示。 */
     remaining: () => boolean;
     onClick: () => void;
@@ -193,7 +193,7 @@ export class InlineUsage {
         }
         const remaining = this.host.remaining();
         const parts: string[] = [];
-        for (const key of INLINE_WINDOWS) {
+        for (const key of this.host.windows()) {
             const percent = snapshot.windows[key]?.percent;
             if (typeof percent !== "number") {
                 continue;
