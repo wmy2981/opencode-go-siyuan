@@ -3,7 +3,14 @@ import {formatRelativeTime} from "./dialog";
 import type {Translate} from "./i18n";
 import type {ProviderCheck} from "./provider";
 import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "./settings";
-import type {PluginSettings, UsageFailure, UsageResult, UsageSnapshot, UserAgentMode} from "./types";
+import type {
+    PluginSettings,
+    UsageFailure,
+    UsageResult,
+    UsageSnapshot,
+    UsageStyle,
+    UserAgentMode,
+} from "./types";
 
 export interface SettingsPanelHost {
     t: Translate;
@@ -498,6 +505,16 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("settings.inlineUsageTip"),
         createActionElement: () => switchElement(draft.inlineUsage, (checked) => {
             draft.inlineUsage = checked;
+        }),
+    });
+    setting.addItem({
+        title: t("settings.usageStyle"),
+        description: t("settings.usageStyleTip"),
+        createActionElement: () => selectElement([
+            ["used", t("settings.usageStyle.used")],
+            ["remaining", t("settings.usageStyle.remaining")],
+        ], draft.usageStyle, (value) => {
+            draft.usageStyle = value as UsageStyle;
         }),
     });
     setting.addItem({

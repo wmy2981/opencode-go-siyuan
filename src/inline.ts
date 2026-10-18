@@ -1,5 +1,6 @@
 import type {Translate} from "./i18n";
-import type {LogFn, UsageFailure, UsageSnapshot} from "./types";
+import {displayedPercent} from "./usage";
+import type {LogFn, UsageFailure, UsageSnapshot, UsageWindowKey} from "./types";
 
 /** 输入区整块，用量行插在它后面（输入框外面、紧贴下沿）。 */
 const INPUT_AREA_SELECTOR = ".sy__agentChat .agent-chat__input-area";
@@ -7,11 +8,15 @@ const NODE_ATTR = "data-opencode-go-usage";
 const NODE_CLASS = "opencode-go-usage";
 /** 按下到抬起之间位移超过这个像素数就算「滑动」，不算「点击」（与思源键盘工具栏同一取值）。 */
 const TAP_SLOP = 10;
+/** 这一行里出现的窗口顺序；默认与窗口选择器里的「5 小时和周」一致。 */
+const INLINE_WINDOWS: UsageWindowKey[] = ["rolling", "weekly"];
 
 export interface InlineUsageHost {
     t: Translate;
     /** 当前是否通过 OpenCode Go 端点对话。 */
     active: () => boolean;
+    /** 百分比按「已用量」还是「剩余量」显示。 */
+    remaining: () => boolean;
     onClick: () => void;
     log: LogFn;
 }
@@ -186,12 +191,22 @@ export class InlineUsage {
             }
             return {text: this.host.t("inline.unavailable"), error: true};
         }
-        const rolling = snapshot.windows.rolling?.percent;
-        const weekly = snapshot.windows.weekly?.percent;
-        if (typeof rolling !== "number" || typeof weekly !== "number") {
+        const remaining = this.host.remaining();
+        const parts: string[] = [];
+        for (const key of INLINE_WINDOWS) {
+            const percent = snapshot.windows[key]?.percent;
+            if (typeof percent !== "number") {
+                continue;
+            }
+            parts.push(this.host.t("inline.window." + key + (remaining ? ".remaining" : ".used"), {
+                value: displayedPercent(percent, remaining),
+            }));
+        }
+        if (parts.length === 0) {
             return {text: this.host.t("inline.unavailable"), error: false};
         }
-        return {text: this.host.t("inline.value", {h5: rolling, week: weekly}), error: false};
+        // 产品名不翻译，只把各窗口的片段交给 i18n。
+        return {text: "OpenCode Go · " + parts.join(" · "), error: false};
     }
 
     private observeBody(): void {

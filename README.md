@@ -21,14 +21,14 @@ SiYuan's own AI settings page.
   so that routing and prompt caching work. The kernel only supports static provider headers, so the
   plugin writes each conversation's own id into the `OPENCODE_GO_SESSION` variable *before* the
   request leaves the client.
-- **Usage.** Rolling (5 hour), weekly and monthly percentages — in the plugin settings panel and as
-  a line under the agent input area. Click that line for a detail dialog with the three windows,
-  their reset countdowns, the current endpoint, upstream model name and session. The same dialog opens
-  from the optional top bar button, which is off by default. A failed query never blanks the UI: the
-  last successful data stays on screen with a relative `last updated` (`just now`, `30s ago`,
-  `5m ago`, `2h ago`), and the failure itself is still spelled out in the error box below that footer;
-  the two do not conflict. When nothing has ever been fetched, the line under the input area shows as
-  unavailable.
+- **Usage.** Rolling (5 hour), weekly and monthly percentages, shown either as the amount used or as
+  the amount left — in the plugin settings panel and as a line under the agent input area. Click that
+  line for a detail dialog with the three windows, their reset countdowns, the current endpoint,
+  upstream model name and session. The same dialog opens from the optional top bar button, which is
+  off by default. A failed query never blanks the UI: the last successful data stays on screen with a
+  relative `last updated` (`just now`, `30s ago`, `5m ago`, `2h ago`), and the failure itself is still
+  spelled out in the error box below that footer; the two do not conflict. When nothing has ever been
+  fetched, the line under the input area shows as unavailable.
 
 ## Requirements
 
@@ -117,6 +117,7 @@ installation-level id is sent for everything.
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
 | Custom User-Agent | empty | Only used with the custom policy. |
 | Show usage in the agent panel | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
+| Usage display style | used | Whether the percentages in the dialog and on that line show the amount used or the amount left; the bar follows the same choice. |
 | Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
 | Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
 | Debug log | off | Prefixed diagnostics in the developer console. Does not contain the API key. |

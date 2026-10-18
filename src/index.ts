@@ -127,6 +127,7 @@ export default class OpenCodeGoPlugin extends Plugin {
         this.inline = new InlineUsage({
             t: this.t,
             active: () => !!this.provider?.isInUse(),
+            remaining: () => this.settings.usageStyle === "remaining",
             onClick: () => this.dialog?.open(),
             log: this.log,
         });
@@ -136,6 +137,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             sessionValue: () => this.session?.value() ?? "",
             snapshot: () => this.lastSnapshot,
             failure: () => this.lastFailure,
+            remaining: () => this.settings.usageStyle === "remaining",
             refresh: () => this.refreshUsage(),
             isMobile: isMobileFrontend,
             log: this.log,

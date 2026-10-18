@@ -1,5 +1,5 @@
 import type {Plugin} from "siyuan";
-import type {PluginSettings, UserAgentMode} from "./types";
+import type {PluginSettings, UsageStyle, UserAgentMode} from "./types";
 
 const STORAGE_NAME = "settings";
 
@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     userAgentMode: "kernel",
     customUserAgent: "",
     inlineUsage: true,
+    usageStyle: "used",
     topBarButton: false,
     refreshIntervalSeconds: DEFAULT_REFRESH_SECONDS,
     debugLog: false,
@@ -21,6 +22,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 
 const isUserAgentMode = (value: unknown): value is UserAgentMode =>
     value === "kernel" || value === "plugin" || value === "custom";
+
+const isUsageStyle = (value: unknown): value is UsageStyle =>
+    value === "used" || value === "remaining";
 
 /** 把磁盘上的内容（可能是旧版本、被手改或不存在）收敛成一份合法配置。 */
 export const normalizeSettings = (raw: unknown): PluginSettings => {
@@ -32,6 +36,8 @@ export const normalizeSettings = (raw: unknown): PluginSettings => {
         userAgentMode: isUserAgentMode(source.userAgentMode) ? source.userAgentMode : DEFAULT_SETTINGS.userAgentMode,
         customUserAgent: typeof source.customUserAgent === "string" ? source.customUserAgent.trim() : "",
         inlineUsage: source.inlineUsage !== false,
+        // 只有显式存成 remaining 才反过来显示，旧配置与非法值一律回落到「已用量」。
+        usageStyle: isUsageStyle(source.usageStyle) ? source.usageStyle : DEFAULT_SETTINGS.usageStyle,
         // 顶栏按钮是可选入口，只有显式存成 true 才注册。
         topBarButton: source.topBarButton === true,
         refreshIntervalSeconds: Number.isFinite(interval) && interval > 0

@@ -22,6 +22,13 @@ import type {
 
 export const USAGE_WINDOW_KEYS: UsageWindowKey[] = ["rolling", "weekly", "monthly"];
 
+/**
+ * 按当前显示样式换算出要展示的百分比。
+ * 上游只给「已用」，剩余量就是 100 减它；进度条与数字共用这个值，免得条和文字各说各话。
+ */
+export const displayedPercent = (percent: number, remaining: boolean): number =>
+    remaining ? Math.max(0, 100 - percent) : percent;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object";
 

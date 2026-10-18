@@ -66,6 +66,12 @@ export interface UsageTarget {
 
 export type UserAgentMode = "kernel" | "plugin" | "custom";
 
+/**
+ * 用量的显示样式。
+ * `used` 是上游返回的已用百分比（默认，与接口口径一致）；`remaining` 显示 100 减去它的剩余量。
+ */
+export type UsageStyle = "used" | "remaining";
+
 export interface PluginSettings {
     /**
      * 按会话写入变量，让 `x-opencode-session` 每段对话各不相同。
@@ -80,6 +86,8 @@ export interface PluginSettings {
     customUserAgent: string;
     /** 在智能体输入框下方显示用量文本。 */
     inlineUsage: boolean;
+    /** 百分比按「已用量」还是「剩余量」显示。 */
+    usageStyle: UsageStyle;
     /** 在顶栏注册一个打开用量弹窗的插件按钮；默认关闭。 */
     topBarButton: boolean;
     refreshIntervalSeconds: number;

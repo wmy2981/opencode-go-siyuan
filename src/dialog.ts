@@ -2,7 +2,7 @@ import {Dialog, showMessage} from "siyuan";
 import {copyText} from "./clipboard";
 import type {Translate} from "./i18n";
 import {bindBottomSheet} from "./sheet";
-import {USAGE_WINDOW_KEYS} from "./usage";
+import {USAGE_WINDOW_KEYS, displayedPercent} from "./usage";
 import type {LogFn, UsageFailure, UsageSnapshot, UsageTarget, UsageWindowKey} from "./types";
 
 const WINDOW_TITLE_KEY: Record<UsageWindowKey, string> = {
@@ -19,6 +19,8 @@ export interface UsageDialogHost {
     snapshot: () => UsageSnapshot | null;
     /** 最近一次失败；与「最后更新」同时展示，互不冲突。 */
     failure: () => UsageFailure | null;
+    /** 百分比按「已用量」还是「剩余量」显示。 */
+    remaining: () => boolean;
     refresh: () => Promise<unknown>;
     isMobile: () => boolean;
     log: LogFn;
@@ -228,15 +230,20 @@ export class UsageDialog {
     private windowsHtml(snapshot: UsageSnapshot | null): string {
         const t = this.host.t;
         const windows = snapshot?.windows ?? {};
+        const remaining = this.host.remaining();
         return USAGE_WINDOW_KEYS.map((key) => {
             const window = windows[key];
-            const percent = typeof window?.percent === "number" ? window.percent : undefined;
+            const percent = typeof window?.percent === "number"
+                ? displayedPercent(window.percent, remaining)
+                : undefined;
             const percentText = typeof percent === "number"
-                ? t("dialog.percent", {percent})
+                ? t(remaining ? "dialog.percentRemaining" : "dialog.percent", {percent})
                 : t("dialog.percentUnknown");
             const limited = window?.status === "rate-limited"
                 ? `<span class="opencode-go-dialog__limited">${t("dialog.rateLimited")}</span>`
                 : "";
+            // 进度条用的就是上面那个「要展示的」百分比：剩余样式下条画的也是剩余量，
+            // 否则会出现「剩余 40%」却把条填到 60% 的自相矛盾。
             return `<div class="opencode-go-dialog__window">
     <div class="opencode-go-dialog__window-head">
         <span>${t(WINDOW_TITLE_KEY[key])}</span>
