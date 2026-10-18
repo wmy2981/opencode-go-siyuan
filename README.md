@@ -23,8 +23,12 @@ SiYuan's own AI settings page.
   request leaves the client.
 - **Usage.** Rolling (5 hour), weekly and monthly percentages — in the plugin settings panel and as
   a line under the agent input area. Click that line for a detail dialog with the three windows,
-  their reset countdowns, the current endpoint / upstream model name / session and any error detail.
-  The same dialog opens from the optional top bar button, which is off by default.
+  their reset countdowns, the current endpoint, upstream model name and session. The same dialog opens
+  from the optional top bar button, which is off by default. A failed query never blanks the UI: the
+  last successful data stays on screen with a relative `last updated` (`just now`, `30s ago`,
+  `5m ago`, `2h ago`), and the failure itself is still spelled out in the error box below that footer;
+  the two do not conflict. When nothing has ever been fetched, the line under the input area shows as
+  unavailable.
 
 ## Requirements
 
@@ -35,8 +39,9 @@ SiYuan's own AI settings page.
 - An OpenCode Go subscription and an API key from <https://opencode.ai/auth>.
 - The usage query is relayed by the kernel (`/api/network/forwardProxy`, the same route the chat
   request uses), which needs the **administrator** role. The desktop and mobile apps always have it;
-  a browser session logged in with a read-only access code does not — the usage line then reports the
-  failure instead of showing numbers.
+  a browser session logged in with a read-only access code does not — the query then fails, the dialog
+  and the settings self check spell out why, and the UI never passes stale numbers off as current
+  (the relative update time shows how old they are).
 
 ## Install
 
@@ -106,7 +111,7 @@ installation-level id is sent for everything.
 | --- | --- | --- |
 | *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
 | Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
-| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id and the endpoint error detail. |
+| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id, how long ago the last successful query ran, and the error detail when a query failed. |
 | Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. Requests other plugins relay to the same endpoint always use the static id. |
 | Static session ID | empty | Used when the switch above is off, and by other plugins relaying requests to the same endpoint; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
@@ -154,8 +159,8 @@ a restart.
   exact position.
 - SiYuan's own **Test connection** button under *Settings → AI* shows *"the model is not in the
   available list"* for **any** failure of its one-token probe whenever `/v1/models` answered (that
-  endpoint needs no key), so a rejected or missing key looks like a model problem there. The usage
-  line and the plugin's self check report what the endpoint actually said.
+  endpoint needs no key), so a rejected or missing key looks like a model problem there. The error box
+  in the usage dialog, the self check and the debug log report what the endpoint actually said.
 - The card icon is applied by the plugin after the native list renders: SiYuan only ever takes a
   provider icon from its own built-in preset table (matched by base URL) and exposes no hook for
   third-party brands, so the plugin swaps the avatar of every card that points at the official

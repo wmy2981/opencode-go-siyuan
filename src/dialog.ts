@@ -3,8 +3,7 @@ import {copyText} from "./clipboard";
 import type {Translate} from "./i18n";
 import {bindBottomSheet} from "./sheet";
 import {USAGE_WINDOW_KEYS} from "./usage";
-import {isUsageFailure} from "./types";
-import type {LogFn, UsageResult, UsageTarget, UsageWindowKey} from "./types";
+import type {LogFn, UsageFailure, UsageSnapshot, UsageTarget, UsageWindowKey} from "./types";
 
 const WINDOW_TITLE_KEY: Record<UsageWindowKey, string> = {
     rolling: "dialog.rolling",
@@ -16,8 +15,11 @@ export interface UsageDialogHost {
     t: Translate;
     target: () => UsageTarget | undefined;
     sessionValue: () => string;
-    result: () => UsageResult | null;
-    refresh: () => Promise<UsageResult | null>;
+    /** 最近一次成功取到的用量；查询失败时仍是上一份。 */
+    snapshot: () => UsageSnapshot | null;
+    /** 最近一次失败；与「最后更新」同时展示，互不冲突。 */
+    failure: () => UsageFailure | null;
+    refresh: () => Promise<unknown>;
     isMobile: () => boolean;
     log: LogFn;
 }
@@ -61,6 +63,27 @@ export const formatSpanDuration = (milliseconds: number, t: Translate): string =
         return t("duration.second", {s: totalSeconds % 60});
     }
     return parts.join(" ");
+};
+
+/**
+ * 把「距上次成功取数过了多久」格式化成 `现在` / `30 秒前` / `5 分钟前` / `2 小时前`。
+ *
+ * 用量刷新失败时会继续展示上一份数据，绝对时间（`21:09:08`）看不出它有多旧，
+ * 相对时间才说明「这行数字是刚才的，还是十分钟前的」。
+ */
+export const formatRelativeTime = (timestamp: number, now: number, t: Translate): string => {
+    const seconds = Math.max(0, Math.round((now - timestamp) / 1000));
+    if (seconds < 5) {
+        return t("time.justNow");
+    }
+    if (seconds < 60) {
+        return t("time.secondsAgo", {n: seconds});
+    }
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+        return t("time.minutesAgo", {n: minutes});
+    }
+    return t("time.hoursAgo", {n: Math.floor(minutes / 60)});
 };
 
 /**
@@ -168,7 +191,7 @@ export class UsageDialog {
         }
         const t = this.host.t;
         const target = this.host.target();
-        const result = this.host.result();
+        const snapshot = this.host.snapshot();
         const setText = (role: string, value: string): void => {
             const element = root.querySelector<HTMLElement>('[data-role="' + role + '"]');
             if (element) {
@@ -180,18 +203,20 @@ export class UsageDialog {
         // 显示真正发给上游的模型 name；思源自己分配的 id 对用户没有意义。
         setText("model", target?.modelName || target?.modelId || t("check.none"));
         setText("session", this.host.sessionValue() || t("check.none"));
-        setText("updated", result?.ok
-            ? t("dialog.updatedAt", {time: new Date(result.snapshot.fetchedAt).toLocaleTimeString()})
+        setText("updated", snapshot
+            ? t("dialog.updatedAt", {time: formatRelativeTime(snapshot.fetchedAt, Date.now(), t)})
             : t("dialog.never"));
         const windows = root.querySelector<HTMLElement>('[data-role="windows"]');
         if (windows) {
-            windows.innerHTML = this.windowsHtml();
+            windows.innerHTML = this.windowsHtml(snapshot);
         }
+        // 错误块在「最后更新 + 刷新按钮」下面那一格：数据也许是上一次的，原因照样写清楚。
+        const failure = this.host.failure();
         const error = root.querySelector<HTMLElement>('[data-role="error"]');
         if (error) {
-            if (result && isUsageFailure(result)) {
-                const detail = result.failure.detail ? " · " + result.failure.detail : "";
-                error.textContent = t("dialog.error") + ": " + result.failure.message + detail;
+            if (failure) {
+                const detail = failure.detail ? " · " + failure.detail : "";
+                error.textContent = t("dialog.error") + ": " + failure.message + detail;
                 error.classList.remove("fn__none");
             } else {
                 error.textContent = "";
@@ -200,10 +225,9 @@ export class UsageDialog {
         }
     }
 
-    private windowsHtml(): string {
+    private windowsHtml(snapshot: UsageSnapshot | null): string {
         const t = this.host.t;
-        const result = this.host.result();
-        const windows = result && result.ok ? result.snapshot.windows : {};
+        const windows = snapshot?.windows ?? {};
         return USAGE_WINDOW_KEYS.map((key) => {
             const window = windows[key];
             const percent = typeof window?.percent === "number" ? window.percent : undefined;

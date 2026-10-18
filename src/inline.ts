@@ -1,5 +1,5 @@
 import type {Translate} from "./i18n";
-import type {LogFn, UsageResult} from "./types";
+import type {LogFn, UsageFailure, UsageSnapshot} from "./types";
 
 /** 输入区整块，用量行插在它后面（输入框外面、紧贴下沿）。 */
 const INPUT_AREA_SELECTOR = ".sy__agentChat .agent-chat__input-area";
@@ -28,7 +28,10 @@ export class InlineUsage {
     private panelObserver: MutationObserver | null = null;
     private frame = 0;
     private lastText = "";
-    private result: UsageResult | null = null;
+    /** 最近一次成功取到的用量；失败时保留，界面继续显示上一份数字。 */
+    private snapshot: UsageSnapshot | null = null;
+    /** 最近一次失败；只在没有可展示的数据时用来把这一行画成错误态。 */
+    private failure: UsageFailure | null = null;
     private enabled = true;
     private destroyed = false;
 
@@ -40,8 +43,10 @@ export class InlineUsage {
         this.schedule();
     }
 
-    setResult(result: UsageResult | null): void {
-        this.result = result;
+    /** 刷新一次显示状态：最近一次成功的数据 + 最近一次失败（两者可以同时存在）。 */
+    setUsage(snapshot: UsageSnapshot | null, failure: UsageFailure | null): void {
+        this.snapshot = snapshot;
+        this.failure = failure;
         this.schedule();
     }
 
@@ -159,30 +164,34 @@ export class InlineUsage {
         if (!this.node) {
             return;
         }
-        const text = this.textOf();
+        const {text, error} = this.textOf();
         if (text !== this.lastText) {
             this.lastText = text;
             this.node.textContent = text;
-            this.node.classList.toggle("opencode-go-usage--error", !!this.result && !this.result.ok);
         }
+        this.node.classList.toggle("opencode-go-usage--error", error);
         this.node.classList.toggle("fn__none", text === "");
     }
 
-    private textOf(): string {
-        const result = this.result;
-        if (!result) {
-            // 还没拿到数据时不显示，避免先闪一行再变成真数据。
-            return "";
+    /**
+     * 这一行显示什么，以及要不要按「出错」的样式画。
+     * 有缓存数据就照常显示数字；一次都没成功过（且确实查失败过）才明说不可用。
+     */
+    private textOf(): {text: string; error: boolean} {
+        const snapshot = this.snapshot;
+        if (!snapshot) {
+            if (!this.failure) {
+                // 还没查过，不占位，避免先闪一行再变成真数据。
+                return {text: "", error: false};
+            }
+            return {text: this.host.t("inline.unavailable"), error: true};
         }
-        if (!result.ok) {
-            return this.host.t("inline.unavailable");
-        }
-        const rolling = result.snapshot.windows.rolling?.percent;
-        const weekly = result.snapshot.windows.weekly?.percent;
+        const rolling = snapshot.windows.rolling?.percent;
+        const weekly = snapshot.windows.weekly?.percent;
         if (typeof rolling !== "number" || typeof weekly !== "number") {
-            return this.host.t("inline.unavailable");
+            return {text: this.host.t("inline.unavailable"), error: false};
         }
-        return this.host.t("inline.value", {h5: rolling, week: weekly});
+        return {text: this.host.t("inline.value", {h5: rolling, week: weekly}), error: false};
     }
 
     private observeBody(): void {

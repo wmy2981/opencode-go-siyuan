@@ -1,9 +1,9 @@
 import {Setting, showMessage} from "siyuan";
+import {formatRelativeTime} from "./dialog";
 import type {Translate} from "./i18n";
 import type {ProviderCheck} from "./provider";
 import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "./settings";
-import {isUsageFailure} from "./types";
-import type {PluginSettings, UsageResult, UserAgentMode} from "./types";
+import type {PluginSettings, UsageFailure, UsageResult, UsageSnapshot, UserAgentMode} from "./types";
 
 export interface SettingsPanelHost {
     t: Translate;
@@ -21,7 +21,9 @@ export interface SettingsPanelHost {
     openUsage: () => void;
     refreshUsage: () => Promise<UsageResult | null>;
     sessionValue: () => string;
-    usage: () => UsageResult | null;
+    usage: () => UsageSnapshot | null;
+    /** 最近一次失败的查询；有值时自检的「用量」一行会附上原因并标红。 */
+    usageFailure: () => UsageFailure | null;
     isMobile: () => boolean;
     log: (topic: string, message: string) => void;
 }
@@ -265,7 +267,8 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
      * - 取值不同：插件从不覆盖用户自己改过的取值 → 黄（需要人来确认是不是故意的）；
      * - API Key：未填或含非 ASCII → 红（必须重新粘贴）；只是混了空白/零宽字符 → 黄
      *   （用量请求会先净化再用，只有对话会被上游拒，点一次「立即修复」即可）；
-     * - 用量：取到数据 → 绿；还没取过 → 黄；取失败 → 红。
+     * - 用量：有缓存数据 → 绿；还没成功取过 → 黄；上一次查询失败 → 红，并把原因写在
+     *   更新时间后面（失败时保留上一份数据，所以「多旧」与「为什么没更新」都会写出来）。
      */
     const missingLevel = (values: string[]): CheckLevel => values.length > 0 ? "error" : "ok";
     const conflictLevel = (values: string[]): CheckLevel => values.length > 0 ? "warn" : "ok";
@@ -275,12 +278,20 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }
         return check.apiKeyDirty ? "warn" : "ok";
     };
-    const usageLevel = (usage: UsageResult | null): CheckLevel =>
-        !usage ? "warn" : isUsageFailure(usage) ? "error" : "ok";
+
+    /** 「用量」一行的取值：缓存的更新时间，失败时在同一行后面附上原因。 */
+    const usagePart = (usage: UsageSnapshot | null, failure: UsageFailure | null): string => {
+        const updated = usage
+            ? t("dialog.updatedAt", {time: formatRelativeTime(usage.fetchedAt, Date.now(), t)})
+            : t("dialog.never");
+        return failure ? updated + " · " + t("dialog.error") + ": " + failure.message : updated;
+    };
 
     const fillCheck = (container: HTMLElement): void => {
         const check = host.inspect();
         const usage = host.usage();
+        const usageFailure = host.usageFailure();
+        const usageLevel: CheckLevel = usageFailure ? "error" : usage ? "ok" : "warn";
         const rows: CheckRow[] = [];
         const join = (values: string[]): string => values.length > 0 ? values.join(", ") : t("check.none");
         rows.push({label: t("check.provider"), value: check.exists
@@ -314,12 +325,8 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         rows.push({label: t("check.sessionVariable"), value: host.sessionValue() || t("check.none")});
         rows.push({
             label: t("check.usage"),
-            value: !usage
-                ? t("dialog.never")
-                : isUsageFailure(usage)
-                    ? t("dialog.error") + ": " + usage.failure.message
-                    : t("dialog.updatedAt", {time: new Date(usage.snapshot.fetchedAt).toLocaleTimeString()}),
-            level: usageLevel(usage),
+            value: usagePart(usage, usageFailure),
+            level: usageLevel,
         });
         rows.push({label: "", value: t("message.variableTip"), tip: true});
         container.replaceChildren(...rows.map(({label, value, level, tip}) => {

@@ -27,6 +27,11 @@
   "dialog.copyFailed": "复制失败，请手动选择文本",
   "dialog.error": "错误详情",
 
+  "time.justNow": "现在",
+  "time.secondsAgo": "{n} 秒前",
+  "time.minutesAgo": "{n} 分钟前",
+  "time.hoursAgo": "{n} 小时前",
+
   "duration.day": "{d} 天",
   "duration.hour": "{h} 小时",
   "duration.hourMinute": "{h} 小时 {m} 分",

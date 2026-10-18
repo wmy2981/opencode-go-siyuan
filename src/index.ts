@@ -12,7 +12,8 @@ import {ProviderIconPatcher} from "./providerIcon";
 import {SessionHeaderController} from "./session";
 import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from "./settings";
 import {openSettingsPanel, openWithoutAutofocus} from "./settingsPanel";
-import type {LogFn, PluginSettings, UsageResult} from "./types";
+import {isUsageFailure} from "./types";
+import type {LogFn, PluginSettings, UsageFailure, UsageResult, UsageSnapshot} from "./types";
 import {UsageClient} from "./usage";
 
 /** 跳到供应商详情页时等待宿主渲染的上限与轮询间隔。 */
@@ -75,7 +76,16 @@ export default class OpenCodeGoPlugin extends Plugin {
     private dialog: UsageDialog | null = null;
     private iconPatcher: ProviderIconPatcher | null = null;
     private timer = 0;
-    private lastUsage: UsageResult | null = null;
+    /**
+     * 最近一次**成功**取到的用量。刷新失败时继续展示它 —— 用量接口偶尔抽风，
+     * 把上一次的数字一并抹掉只会让用户看到一片空白，而不是「数据有点旧」。
+     */
+    private lastSnapshot: UsageSnapshot | null = null;
+    /**
+     * 最近一次失败的查询。失败详情照旧展示（弹窗底部的错误块、设置页自检），
+     * 与「最后更新」互不冲突：数据可以是旧的，原因也写着。
+     */
+    private lastFailure: UsageFailure | null = null;
     /** 品牌图标 sprite 是否已经注册（`addIcons` 每次加载只应调用一次）。 */
     private topBarIconReady = false;
 
@@ -124,7 +134,8 @@ export default class OpenCodeGoPlugin extends Plugin {
             t: this.t,
             target: () => this.provider?.target(),
             sessionValue: () => this.session?.value() ?? "",
-            result: () => this.lastUsage,
+            snapshot: () => this.lastSnapshot,
+            failure: () => this.lastFailure,
             refresh: () => this.refreshUsage(),
             isMobile: isMobileFrontend,
             log: this.log,
@@ -166,7 +177,8 @@ export default class OpenCodeGoPlugin extends Plugin {
             openUsage: () => this.dialog?.open(),
             refreshUsage: () => this.refreshUsage(),
             sessionValue: () => this.session!.value(),
-            usage: () => this.lastUsage,
+            usage: () => this.lastSnapshot,
+            usageFailure: () => this.lastFailure,
             isMobile: isMobileFrontend,
             log: this.log,
         });
@@ -337,17 +349,25 @@ export default class OpenCodeGoPlugin extends Plugin {
         });
     }
 
+    /**
+     * 查一次用量。成功就替换缓存，失败则保留上一份数据；失败详情存下来，
+     * 由弹窗底部的错误块与设置页自检展示，不额外弹提示。
+     */
     private async refreshUsage(): Promise<UsageResult | null> {
         if (!this.usage) {
             return null;
         }
         const result = await this.usage.fetch();
-        this.lastUsage = result;
-        this.inline?.setResult(result);
-        this.dialog?.refreshView();
-        if (result.ok) {
+        if (isUsageFailure(result)) {
+            this.lastFailure = result.failure;
+            this.log("usage", "usage refresh failed (" + result.failure.kind + "); keeping the cached snapshot");
+        } else {
+            this.lastSnapshot = result.snapshot;
+            this.lastFailure = null;
             this.log("usage", "usage updated");
         }
+        this.inline?.setUsage(this.lastSnapshot, this.lastFailure);
+        this.dialog?.refreshView();
         return result;
     }
 
