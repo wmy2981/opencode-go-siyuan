@@ -1,5 +1,5 @@
 import {fetchSyncPost} from "siyuan";
-import type {SetAIRequestInput, SettingAI, SettingProvider} from "siyuan";
+import type {SetAIRequestInput, SettingAI, SettingModel, SettingProvider} from "siyuan";
 import {
     DEFAULT_PLUGIN_UA,
     findBlockingNonASCII,
@@ -46,6 +46,19 @@ export interface ProviderCheck {
     dismissed: boolean;
     /** 同样命中官方端点、但不是插件维护的供应商。 */
     foreign: Array<{providerId: string; displayName: string; missing: string[]; conflicts: string[]}>;
+}
+
+/** 一键添加模型的执行结果：设置面板据此拼提示文案。 */
+export interface AddModelsResult {
+    ok: boolean;
+    /** 本次新增的模型数。 */
+    added: number;
+    /** 端点返回的模型总数。 */
+    total: number;
+    /** 失败原因；`ok` 为 true 时为空。 */
+    failure: "" | "noProvider" | "upstream";
+    /** 内核或上游的原话，可能为空：只作为附加说明，不当正文案。 */
+    detail: string;
 }
 
 /** 读取宿主的 AI 配置；`window.siyuan.config` 在保存设置时会被整体替换，所以每次重新取。 */
@@ -151,7 +164,8 @@ export const officialProviderCards = (): Array<{providerId: string; displayName:
  * 原则（与需求约定一致）：
  * - 只在用户显式点「创建供应商」或「立即修复」时动手，运行时绝不自动注入。
  * - 只补缺失字段，不覆盖用户自己改过的取值；要覆盖必须由用户显式点「立即修复」。
- * - 绝不碰模型列表：模型由用户在原生供应商页自己添加，插件只统计数量用于自检。
+ * - 平时不写模型列表：只有用户点「添加所有可用模型」时，才把端点 `/v1/models` 上有、而
+ *   供应商里还没有的模型追加进去（同名条目一个都不动）。
  * - 写回前必须重新读取实时配置，绝不拿旧快照整体覆盖——那会抹掉用户刚粘贴的 API Key。
  * - 写入走内核原生的 `/api/setting/setAI`，因此该供应商在原生页面里是一个普通条目，
  *   可以被原生地改名、改 key、改模型、删除。
@@ -266,6 +280,102 @@ export class ProviderManager {
     /** 用户显式点「立即修复」：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
     async repair(): Promise<ProviderCheck> {
         return this.apply(true);
+    }
+
+    /**
+     * 用户显式点「添加所有可用模型」：把端点上有、而供应商里还没有的模型补进去。
+     *
+     * 拉清单走内核的 `/api/ai/listModels`（`kernel/api/ai.go` 的 `listModelsContract`，v3.8.6 核对）：
+     * 它按供应商的 baseURL 请求 `<baseURL>/models`，顺带返回上下文长度与显示名。渲染进程不必
+     * 为此再造一套请求与鉴权，内核本来也会解析供应商请求头（占位符变量同样生效）。
+     *
+     * 只追加、不改已有条目：同名模型（按 `name` 比较）已存在就跳过，用户自己填的显示名、
+     * 上下文长度与启用状态一律保留。
+     */
+    async addModels(): Promise<AddModelsResult> {
+        const state = this.readState(this.getSettings());
+        const provider = state.owned ?? state.matches[0];
+        if (!provider) {
+            return {ok: false, added: 0, total: 0, failure: "noProvider", detail: ""};
+        }
+        let models: string[] = [];
+        let displayNames: Record<string, unknown> = {};
+        let contextLengths: Record<string, unknown> = {};
+        let upstreamMessage = "";
+        try {
+            const response = await fetchSyncPost("/api/ai/listModels", {providerConfig: provider});
+            if (response.code !== 0) {
+                this.log("provider", "listing models was refused: " + response.msg);
+                return {
+                    ok: false,
+                    added: 0,
+                    total: 0,
+                    failure: "upstream",
+                    detail: response.msg || String(response.code),
+                };
+            }
+            const data = (response.data ?? {}) as {
+                models?: unknown;
+                displayNames?: unknown;
+                contextLengths?: unknown;
+                msg?: unknown;
+            };
+            models = (Array.isArray(data.models) ? data.models : [])
+                .filter((item): item is string => typeof item === "string" && item.trim() !== "")
+                .map((item) => item.trim());
+            displayNames = data.displayNames && typeof data.displayNames === "object"
+                ? data.displayNames as Record<string, unknown>
+                : {};
+            contextLengths = data.contextLengths && typeof data.contextLengths === "object"
+                ? data.contextLengths as Record<string, unknown>
+                : {};
+            upstreamMessage = typeof data.msg === "string" ? data.msg : "";
+        } catch (error) {
+            this.log("provider", "listing models failed: " + String(error));
+            return {ok: false, added: 0, total: 0, failure: "upstream", detail: String(error)};
+        }
+        if (models.length === 0) {
+            // 内核把上游失败也按 code=0 返回，原因放在 `msg` 里。
+            return {ok: false, added: 0, total: 0, failure: "upstream", detail: upstreamMessage};
+        }
+        // 等清单期间用户可能改过配置：重新读实时配置，再按 id 找回同一条供应商，读与写之间不再有
+        // await —— 否则会把这一段里用户刚改的内容整体覆盖掉。
+        const ai = readAI();
+        const target = ai ? listProviders(ai).find((item) => item.id === provider.id) : undefined;
+        if (!ai || !target) {
+            this.log("provider", "the provider disappeared while listing models; skip writing");
+            return {ok: false, added: 0, total: 0, failure: "noProvider", detail: ""};
+        }
+        if (!Array.isArray(target.models)) {
+            target.models = [];
+        }
+        const existing = new Set(
+            target.models.filter((item): item is SettingModel => !!item).map((item) => item.name.trim()),
+        );
+        let added = 0;
+        for (const name of models) {
+            if (existing.has(name)) {
+                continue;
+            }
+            const model: SettingModel = {
+                id: newNodeID(),
+                enabled: true,
+                name,
+                displayName: typeof displayNames[name] === "string" ? displayNames[name] as string : "",
+            };
+            const contextLength = contextLengths[name];
+            if (typeof contextLength === "number" && Number.isFinite(contextLength) && contextLength > 0) {
+                model.contextLength = Math.round(contextLength);
+            }
+            target.models.push(model);
+            existing.add(name);
+            added++;
+        }
+        if (added > 0) {
+            await this.writeAI(ai);
+        }
+        this.log("provider", "added " + added + " of " + models.length + " models from the endpoint");
+        return {ok: true, added, total: models.length, failure: "", detail: ""};
     }
 
     /**

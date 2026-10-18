@@ -14,8 +14,9 @@ SiYuan's own AI settings page.
   `Settings → AI` is touched before the matching button is clicked, and an entry that already
   points at the official endpoint is adopted instead of duplicated. Once created it is an ordinary
   provider — official icon, rename it, paste the key, add or remove models, disable or delete it right
-  there in the native page. **Models are added by the user**: the plugin never fetches or writes the
-  model list.
+  there in the native page. **Models are yours to add**; when you want the whole list at once, the
+  settings page has *Add all available models*, which only appends the entries the provider is
+  missing.
 - **Per-conversation `x-opencode-session`.** OpenCode Go rejects requests without that header
   (`400 MissingSessionID`, checked before authentication) and asks for a stable id per conversation
   so that routing and prompt caching work. The kernel only supports static provider headers, so the
@@ -58,7 +59,8 @@ configuration on its own:
 1. **Create the OpenCode Go provider.** Press the button; if *Settings → AI* already holds an entry
    on `https://opencode.ai/zen/go/v1` it is adopted, so no second card is created.
 2. **Fill in the credentials.** Press the button to open SiYuan's own AI settings page on that
-   provider, paste the API key and add the models you need the native way.
+   provider, paste the API key and add the models you need the native way (or press *Add all available
+   models* in the plugin settings to fill in the whole list).
 3. **Check.** Press the button to verify the provider, its headers, the key, the session variable and
    the usage endpoint; the result is printed right below. The check can be run repeatedly, and four of
    its rows are coloured by severity: missing headers, differing values, the key and the usage query
@@ -110,6 +112,7 @@ installation-level id is sent for everything.
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
+| Add all available models | — | Fetches the list from `/v1/models` and adds the models the provider does not have yet; existing entries are neither duplicated nor renamed or re-measured. |
 | Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
 | Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id, how long ago the last successful query ran, and the error detail when a query failed. |
 | Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. Requests other plugins relay to the same endpoint always use the static id. |
@@ -153,8 +156,9 @@ a restart.
   numbers can differ from the console page for a specific model.
 - Model entries use the bare model id (for example `deepseek-v4.1-flash`) as the upstream model name;
   the dialog shows that name rather than the internal id SiYuan assigns to the entry.
-- The plugin never adds, fetches or edits models. Add them on the provider page; the self check only
-  counts them.
+- The model list stays untouched by default: only *Add all available models* fetches it once, and it
+  merely appends the missing entries — display names, context lengths and enabled flags of existing
+  entries are left alone. The self check only counts them.
 - The API key must be printable ASCII. Whitespace, zero width characters and byte order marks are
   stripped automatically (they are what makes the gateway answer *Invalid API key.*), but any other
   non-ASCII character has to be fixed by pasting the key again; the settings self check points at the

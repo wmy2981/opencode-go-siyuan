@@ -1,7 +1,7 @@
 import {Setting, showMessage} from "siyuan";
 import {formatRelativeTime} from "./dialog";
 import type {Translate} from "./i18n";
-import type {ProviderCheck} from "./provider";
+import type {AddModelsResult, ProviderCheck} from "./provider";
 import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "./settings";
 import type {
     InlineWindowPreset,
@@ -23,6 +23,8 @@ export interface SettingsPanelHost {
     create: () => Promise<ProviderCheck>;
     /** 显式修复：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
     repair: () => Promise<ProviderCheck>;
+    /** 显式把端点上有、供应商里还没有的模型补进去。 */
+    addModels: () => Promise<AddModelsResult>;
     /** 打开思源原生的「设置 - 人工智能」并定位到这个供应商。 */
     openProviderSetting: () => Promise<void>;
     /** 打开用量详情弹窗（与点击输入框下方那行用量是同一个窗口）。 */
@@ -412,6 +414,30 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
     checkElement.className = "opencode-go-check";
     const step3 = stepElement(true, step3Button, checkElement);
 
+    /**
+     * 「添加所有可用模型」：属于第 2 步可选的补全动作，但不必先打开原生设置页，所以单独成项。
+     * 供应商还没建时按钮不可点（与第 2 步同一前置条件）。
+     */
+    const addModelsButton = actionButton(
+        async () => {
+            const result = await host.addModels();
+            if (!result.ok) {
+                showMessage(result.failure === "noProvider"
+                    ? t("settings.addModelsNoProvider")
+                    : t("settings.addModelsUpstream", {detail: result.detail || t("settings.addModelsEmpty")}),
+                6000, "error");
+                return;
+            }
+            showMessage(result.added > 0
+                ? t("settings.addModelsDone", {added: result.added, total: result.total})
+                : t("settings.addModelsNothing", {total: result.total}));
+        },
+        (button) => {
+            button.textContent = t("settings.addModelsAction");
+            button.disabled = !host.inspect().exists;
+        },
+    );
+
     // ---- 设置 -------------------------------------------------------------
 
     const setting = new PanelSetting(host.isMobile(), {
@@ -451,6 +477,12 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("guide.step3.desc"),
         direction: "row",
         createActionElement: () => step3,
+    });
+
+    setting.addItem({
+        title: t("settings.addModels"),
+        description: t("settings.addModelsTip"),
+        createActionElement: () => addModelsButton,
     });
 
     setting.addItem({

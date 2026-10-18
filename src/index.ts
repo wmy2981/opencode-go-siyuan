@@ -7,7 +7,7 @@ import {createTranslator} from "./i18n";
 import {InlineUsage} from "./inline";
 import {createLogger} from "./log";
 import {ProviderManager} from "./provider";
-import type {ProviderCheck} from "./provider";
+import type {AddModelsResult, ProviderCheck} from "./provider";
 import {ProviderIconPatcher} from "./providerIcon";
 import {SessionHeaderController} from "./session";
 import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from "./settings";
@@ -176,6 +176,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             inspect: () => this.provider!.inspect(),
             create: () => this.createProvider(),
             repair: () => this.repairProvider(),
+            addModels: () => this.addProviderModels(),
             openProviderSetting: () => this.openProviderSetting(),
             openUsage: () => this.dialog?.open(),
             refreshUsage: () => this.refreshUsage(),
@@ -235,6 +236,14 @@ export default class OpenCodeGoPlugin extends Plugin {
         const check = await this.provider.repair();
         this.log("provider", "provider repaired: " + check.providerId);
         return check;
+    }
+
+    /** 设置项「添加所有可用模型」：显式把端点上还没有的模型补进该供应商。 */
+    private async addProviderModels(): Promise<AddModelsResult> {
+        if (!this.provider) {
+            throw new Error("provider manager is not ready");
+        }
+        return this.provider.addModels();
     }
 
     /**
