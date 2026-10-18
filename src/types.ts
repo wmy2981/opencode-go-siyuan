@@ -60,7 +60,10 @@ export interface UsageTarget {
     apiKey: string;
     /** 当前选中的模型 id —— 思源自己分配的那个，只在供应商模型列表里用来定位条目。 */
     modelId: string;
-    /** 该模型真正发给上游的 name；界面上展示的应该是它，而不是思源分配的 id。 */
+    /**
+     * 该模型真正发给上游的 name；界面上展示的应该是它，而不是思源分配的 id。
+     * 当前模型不属于任何 OpenCode Go 供应商时为空 —— 用量弹窗据此整行不显示模型。
+     */
     modelName: string;
 }
 

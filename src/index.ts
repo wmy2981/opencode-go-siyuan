@@ -129,7 +129,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             active: () => !!this.provider?.isInUse(),
             windows: () => INLINE_WINDOW_PRESETS[this.settings.inlineWindows],
             remaining: () => this.settings.usageStyle === "remaining",
-            onClick: () => this.dialog?.open(),
+            onClick: () => this.dialog?.open("agent"),
             log: this.log,
         });
         this.dialog = new UsageDialog({
@@ -178,7 +178,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             repair: () => this.repairProvider(),
             addModels: () => this.addProviderModels(),
             openProviderSetting: () => this.openProviderSetting(),
-            openUsage: () => this.dialog?.open(),
+            openUsage: () => this.dialog?.open("settings"),
             refreshUsage: () => this.refreshUsage(),
             sessionValue: () => this.session!.value(),
             usage: () => this.lastSnapshot,
@@ -357,7 +357,7 @@ export default class OpenCodeGoPlugin extends Plugin {
             icon: TOP_BAR_USAGE_ICON_ID,
             // 标题同时是按钮的 aria-label/提示文案，与弹窗标题一致。
             title: this.t("dialog.title"),
-            callback: () => this.dialog?.open(),
+            callback: () => this.dialog?.open("topbar"),
         });
     }
 

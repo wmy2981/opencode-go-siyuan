@@ -124,21 +124,21 @@ export const userAgentOf = (settings: PluginSettings): string => {
 
 /**
  * 当前选中的模型真正发给上游的 name（思源把上游模型名存在 `name`，`id` 只是本地标识）。
- * 找不到归属时返回空串，调用方自行决定退回什么。
+ * 传进来的 `provider` 必须是这个模型所属的供应商，查不到归属时不要调用。
  */
-const upstreamModelName = (modelId: string): string => {
+const upstreamModelNameOf = (provider: SettingProvider, modelId: string): string => {
+    const model = (provider.models ?? []).find((item) => item?.id === modelId);
+    const name = typeof model?.name === "string" ? model.name.trim() : "";
+    return name || modelId;
+};
+
+/** 当前选中的模型归哪个供应商所有；没有归属（或还没选模型）时返回 undefined。 */
+const modelOwnerOf = (providers: SettingProvider[], modelId: string): SettingProvider | undefined => {
     if (!modelId) {
-        return "";
+        return undefined;
     }
-    const ai = readAI();
-    for (const provider of ai ? listProviders(ai) : []) {
-        const model = (provider.models ?? []).find((item) => item?.id === modelId);
-        const name = typeof model?.name === "string" ? model.name.trim() : "";
-        if (name) {
-            return name;
-        }
-    }
-    return "";
+    return providers.find((provider) =>
+        (provider.models ?? []).some((model) => model?.enabled && model.id === modelId));
 };
 
 /**
@@ -226,21 +226,29 @@ export class ProviderManager {
         };
     }
 
-    /** 用量请求目标：baseURL 命中官方端点的供应商，优先「启用 + 有 key + 包含当前模型」。 */
+    /**
+     * 用量请求目标：baseURL 命中官方端点的供应商，优先「启用 + 有 key + 包含当前模型」。
+     *
+     * `modelName` 只在当前模型确实属于某个官方端点供应商时才有值：思源可能正用着别的供应商，
+     * 那时把它的模型名写进用量弹窗只会误导人，弹窗会因此整行不显示。
+     */
     target(): UsageTarget | undefined {
         const ai = readAI();
-        const matches = (ai ? listProviders(ai) : []).filter((provider) => isOpenCodeGoBaseURL(provider.baseURL));
+        const providers = ai ? listProviders(ai) : [];
+        const matches = providers.filter((provider) => isOpenCodeGoBaseURL(provider.baseURL));
         if (matches.length === 0) {
             return undefined;
         }
         const modelId = currentModelId();
+        const owner = modelOwnerOf(providers, modelId);
+        const modelName = owner && isOpenCodeGoBaseURL(owner.baseURL) ? upstreamModelNameOf(owner, modelId) : "";
         const toTarget = (provider: SettingProvider): UsageTarget => ({
             providerId: provider.id,
             displayName: provider.displayName || PROVIDER_DISPLAY_NAME,
             baseURL: provider.baseURL,
             apiKey: sanitizeHeaderValue(provider.apiKey ?? ""),
             modelId,
-            modelName: upstreamModelName(modelId) || modelId,
+            modelName,
         });
         const withKey = matches.filter((provider) =>
             provider.enabled && sanitizeHeaderValue(provider.apiKey ?? "") !== "");

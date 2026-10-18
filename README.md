@@ -24,12 +24,13 @@ SiYuan's own AI settings page.
   request leaves the client.
 - **Usage.** Rolling (5 hour), weekly and monthly percentages, shown either as the amount used or as
   the amount left — in the plugin settings panel and as a line under the agent input area. Click that
-  line for a detail dialog with the three windows, their reset countdowns, the current endpoint,
-  upstream model name and session. The same dialog opens from the optional top bar button, which is
-  off by default. A failed query never blanks the UI: the last successful data stays on screen with a
-  relative `last updated` (`just now`, `30s ago`, `5m ago`, `2h ago`), and the failure itself is still
-  spelled out in the error box below that footer; the two do not conflict. When nothing has ever been
-  fetched, the line under the input area shows as unavailable.
+  line for a detail dialog with the three windows, their reset countdowns and the current endpoint;
+  the upstream model name appears only while the current model belongs to this provider, and the
+  session id only when the dialog was opened from that line. The same dialog opens from the optional
+  top bar button, which is off by default. A failed query never blanks the UI: the last successful
+  data stays on screen with a relative `last updated` (`just now`, `30s ago`, `5m ago`, `2h ago`), and
+  the failure itself is still spelled out in the error box below that footer; the two do not conflict.
+  When nothing has ever been fetched, the line under the input area shows as unavailable.
 
 ## Requirements
 
@@ -114,7 +115,7 @@ installation-level id is sent for everything.
 | *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
 | Add all available models | — | Fetches the list from `/v1/models` and adds the models the provider does not have yet; existing entries are neither duplicated nor renamed or re-measured. |
 | Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
-| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, the current session id, how long ago the last successful query ran, and the error detail when a query failed. |
+| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, how long ago the last successful query ran, and the error detail when a query failed; the session id is only shown when the dialog is opened from that agent line. |
 | Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. Requests other plugins relay to the same endpoint always use the static id. |
 | Static session ID | empty | Used when the switch above is off, and by other plugins relaying requests to the same endpoint; an installation-level id is generated when left empty. |
 | User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
@@ -155,7 +156,8 @@ a restart.
 - It returns one aggregate percentage per window. OpenCode documents the limits per model, so the
   numbers can differ from the console page for a specific model.
 - Model entries use the bare model id (for example `deepseek-v4.1-flash`) as the upstream model name;
-  the dialog shows that name rather than the internal id SiYuan assigns to the entry.
+  the dialog shows that name rather than the internal id SiYuan assigns to the entry. The row is
+  hidden altogether while the current model belongs to another provider.
 - The model list stays untouched by default: only *Add all available models* fetches it once, and it
   merely appends the missing entries — display names, context lengths and enabled flags of existing
   entries are left alone. The self check only counts them.

@@ -11,6 +11,12 @@ const WINDOW_TITLE_KEY: Record<UsageWindowKey, string> = {
     monthly: "dialog.monthly",
 };
 
+/**
+ * 打开弹窗的入口。会话 ID 是「这段对话」的身份，只有从智能体面板那一行进来时才有意义；
+ * 顶栏按钮与设置页按钮打开的窗口不展示它。
+ */
+export type UsageOpenSource = "agent" | "topbar" | "settings";
+
 export interface UsageDialogHost {
     t: Translate;
     target: () => UsageTarget | undefined;
@@ -98,11 +104,14 @@ export class UsageDialog {
     /** 底部面板的绑定解绑函数；只有移动端会有。 */
     private sheet: (() => void) | null = null;
     private refreshing = false;
+    /** 这次窗口是从哪里打开的；决定会话 ID 那一行显不显示。 */
+    private source: UsageOpenSource = "topbar";
 
     constructor(private readonly host: UsageDialogHost) {
     }
 
-    open(): void {
+    open(source: UsageOpenSource): void {
+        this.source = source;
         if (this.dialog && !this.dialog.element.isConnected) {
             // 弹窗被别处销毁过（元素已脱离文档）时，缓存的实例只会把内容画进一个看不见的
             // 节点里；这时当作没开过，重建一个。销毁回调没机会跑，面板绑定得在这里摘掉。
@@ -161,8 +170,8 @@ export class UsageDialog {
         <div class="opencode-go-dialog__meta">
             <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.provider")}</span><span data-role="provider"></span></div>
             <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.baseURL")}</span><span class="ft__breakword" data-role="endpoint"></span></div>
-            <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.model")}</span><span data-role="model"></span></div>
-            <div class="opencode-go-dialog__row"><span class="opencode-go-dialog__label">${t("dialog.session")}</span><code class="opencode-go-dialog__session" data-role="session"></code><button class="block__icon block__icon--show ariaLabel" data-position="north" aria-label="${t("dialog.copy")}" data-action="copy" type="button"><svg><use xlink:href="#iconCopy"></use></svg></button></div>
+            <div class="opencode-go-dialog__row" data-row="model"><span class="opencode-go-dialog__label">${t("dialog.model")}</span><span data-role="model"></span></div>
+            <div class="opencode-go-dialog__row" data-row="session"><span class="opencode-go-dialog__label">${t("dialog.session")}</span><code class="opencode-go-dialog__session" data-role="session"></code><button class="block__icon block__icon--show ariaLabel" data-position="north" aria-label="${t("dialog.copy")}" data-action="copy" type="button"><svg><use xlink:href="#iconCopy"></use></svg></button></div>
         </div>
         <div class="opencode-go-dialog__windows" data-role="windows"></div>
         <div class="opencode-go-dialog__foot">
@@ -203,8 +212,13 @@ export class UsageDialog {
         setText("provider", target?.displayName || t("check.none"));
         setText("endpoint", target?.baseURL || t("check.none"));
         // 显示真正发给上游的模型 name；思源自己分配的 id 对用户没有意义。
-        setText("model", target?.modelName || target?.modelId || t("check.none"));
+        // 当前模型不属于任何官方端点供应商（或还没有模型）时整行不显示：那是别的供应商的模型，
+        // 摆在 OpenCode Go 的用量窗口里只会误导人。
+        setText("model", target?.modelName || t("check.none"));
+        this.toggleRow("model", !!target?.modelName);
         setText("session", this.host.sessionValue() || t("check.none"));
+        // 会话 ID 只在从智能体面板那一行打开时展示：顶栏 / 设置页打开的窗口没有对应的对话。
+        this.toggleRow("session", this.source === "agent");
         setText("updated", snapshot
             ? t("dialog.updatedAt", {time: formatRelativeTime(snapshot.fetchedAt, Date.now(), t)})
             : t("dialog.never"));
@@ -225,6 +239,12 @@ export class UsageDialog {
                 error.classList.add("fn__none");
             }
         }
+    }
+
+    /** 按需隐藏元信息里的整行（用思源自己的 `fn__none`，不做行内样式）。 */
+    private toggleRow(row: "model" | "session", visible: boolean): void {
+        const element = this.dialog?.element.querySelector<HTMLElement>('[data-row="' + row + '"]');
+        element?.classList.toggle("fn__none", !visible);
     }
 
     private windowsHtml(snapshot: UsageSnapshot | null): string {
