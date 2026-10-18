@@ -1,9 +1,17 @@
 import {Setting, showMessage} from "siyuan";
+import {formatRelativeTime} from "./dialog";
 import type {Translate} from "./i18n";
-import type {ProviderCheck} from "./provider";
+import type {AddModelsResult, ProviderCheck} from "./provider";
 import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "./settings";
-import {isUsageFailure} from "./types";
-import type {PluginSettings, UsageResult, UserAgentMode} from "./types";
+import type {
+    InlineWindowPreset,
+    PluginSettings,
+    UsageFailure,
+    UsageResult,
+    UsageSnapshot,
+    UsageStyle,
+    UserAgentMode,
+} from "./types";
 
 export interface SettingsPanelHost {
     t: Translate;
@@ -15,13 +23,17 @@ export interface SettingsPanelHost {
     create: () => Promise<ProviderCheck>;
     /** 显式修复：可以重建被删掉的供应商，并覆盖冲突字段、清理 Key 里的杂质。 */
     repair: () => Promise<ProviderCheck>;
+    /** 显式把端点上有、供应商里还没有的模型补进去。 */
+    addModels: () => Promise<AddModelsResult>;
     /** 打开思源原生的「设置 - 人工智能」并定位到这个供应商。 */
     openProviderSetting: () => Promise<void>;
     /** 打开用量详情弹窗（与点击输入框下方那行用量是同一个窗口）。 */
     openUsage: () => void;
     refreshUsage: () => Promise<UsageResult | null>;
     sessionValue: () => string;
-    usage: () => UsageResult | null;
+    usage: () => UsageSnapshot | null;
+    /** 最近一次失败的查询；有值时自检的「用量」一行会附上原因并标红。 */
+    usageFailure: () => UsageFailure | null;
     isMobile: () => boolean;
     log: (topic: string, message: string) => void;
 }
@@ -265,7 +277,8 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
      * - 取值不同：插件从不覆盖用户自己改过的取值 → 黄（需要人来确认是不是故意的）；
      * - API Key：未填或含非 ASCII → 红（必须重新粘贴）；只是混了空白/零宽字符 → 黄
      *   （用量请求会先净化再用，只有对话会被上游拒，点一次「立即修复」即可）；
-     * - 用量：取到数据 → 绿；还没取过 → 黄；取失败 → 红。
+     * - 用量：有缓存数据 → 绿；还没成功取过 → 黄；上一次查询失败 → 红，并把原因写在
+     *   更新时间后面（失败时保留上一份数据，所以「多旧」与「为什么没更新」都会写出来）。
      */
     const missingLevel = (values: string[]): CheckLevel => values.length > 0 ? "error" : "ok";
     const conflictLevel = (values: string[]): CheckLevel => values.length > 0 ? "warn" : "ok";
@@ -275,12 +288,20 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         }
         return check.apiKeyDirty ? "warn" : "ok";
     };
-    const usageLevel = (usage: UsageResult | null): CheckLevel =>
-        !usage ? "warn" : isUsageFailure(usage) ? "error" : "ok";
+
+    /** 「用量」一行的取值：缓存的更新时间，失败时在同一行后面附上原因。 */
+    const usagePart = (usage: UsageSnapshot | null, failure: UsageFailure | null): string => {
+        const updated = usage
+            ? t("dialog.updatedAt", {time: formatRelativeTime(usage.fetchedAt, Date.now(), t)})
+            : t("dialog.never");
+        return failure ? updated + " · " + t("dialog.error") + ": " + failure.message : updated;
+    };
 
     const fillCheck = (container: HTMLElement): void => {
         const check = host.inspect();
         const usage = host.usage();
+        const usageFailure = host.usageFailure();
+        const usageLevel: CheckLevel = usageFailure ? "error" : usage ? "ok" : "warn";
         const rows: CheckRow[] = [];
         const join = (values: string[]): string => values.length > 0 ? values.join(", ") : t("check.none");
         rows.push({label: t("check.provider"), value: check.exists
@@ -314,12 +335,8 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         rows.push({label: t("check.sessionVariable"), value: host.sessionValue() || t("check.none")});
         rows.push({
             label: t("check.usage"),
-            value: !usage
-                ? t("dialog.never")
-                : isUsageFailure(usage)
-                    ? t("dialog.error") + ": " + usage.failure.message
-                    : t("dialog.updatedAt", {time: new Date(usage.snapshot.fetchedAt).toLocaleTimeString()}),
-            level: usageLevel(usage),
+            value: usagePart(usage, usageFailure),
+            level: usageLevel,
         });
         rows.push({label: "", value: t("message.variableTip"), tip: true});
         container.replaceChildren(...rows.map(({label, value, level, tip}) => {
@@ -397,6 +414,30 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
     checkElement.className = "opencode-go-check";
     const step3 = stepElement(true, step3Button, checkElement);
 
+    /**
+     * 「添加所有可用模型」：属于第 2 步可选的补全动作，但不必先打开原生设置页，所以单独成项。
+     * 供应商还没建时按钮不可点（与第 2 步同一前置条件）。
+     */
+    const addModelsButton = actionButton(
+        async () => {
+            const result = await host.addModels();
+            if (!result.ok) {
+                showMessage(result.failure === "noProvider"
+                    ? t("settings.addModelsNoProvider")
+                    : t("settings.addModelsUpstream", {detail: result.detail || t("settings.addModelsEmpty")}),
+                6000, "error");
+                return;
+            }
+            showMessage(result.added > 0
+                ? t("settings.addModelsDone", {added: result.added, total: result.total})
+                : t("settings.addModelsNothing", {total: result.total}));
+        },
+        (button) => {
+            button.textContent = t("settings.addModelsAction");
+            button.disabled = !host.inspect().exists;
+        },
+    );
+
     // ---- 设置 -------------------------------------------------------------
 
     const setting = new PanelSetting(host.isMobile(), {
@@ -436,6 +477,12 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("guide.step3.desc"),
         direction: "row",
         createActionElement: () => step3,
+    });
+
+    setting.addItem({
+        title: t("settings.addModels"),
+        description: t("settings.addModelsTip"),
+        createActionElement: () => addModelsButton,
     });
 
     setting.addItem({
@@ -491,6 +538,29 @@ export const openSettingsPanel = (host: SettingsPanelHost): SettingsPanel => {
         description: t("settings.inlineUsageTip"),
         createActionElement: () => switchElement(draft.inlineUsage, (checked) => {
             draft.inlineUsage = checked;
+        }),
+    });
+    setting.addItem({
+        title: t("settings.inlineWindows"),
+        description: t("settings.inlineWindowsTip"),
+        createActionElement: () => selectElement([
+            ["h5Week", t("settings.inlineWindows.h5Week")],
+            ["h5WeekMonth", t("settings.inlineWindows.h5WeekMonth")],
+            ["h5Month", t("settings.inlineWindows.h5Month")],
+            ["weekMonth", t("settings.inlineWindows.weekMonth")],
+            ["h5", t("settings.inlineWindows.h5")],
+        ], draft.inlineWindows, (value) => {
+            draft.inlineWindows = value as InlineWindowPreset;
+        }),
+    });
+    setting.addItem({
+        title: t("settings.usageStyle"),
+        description: t("settings.usageStyleTip"),
+        createActionElement: () => selectElement([
+            ["used", t("settings.usageStyle.used")],
+            ["remaining", t("settings.usageStyle.remaining")],
+        ], draft.usageStyle, (value) => {
+            draft.usageStyle = value as UsageStyle;
         }),
     });
     setting.addItem({

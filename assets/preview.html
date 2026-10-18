@@ -529,7 +529,7 @@ body { width: 1024px; height: 768px; }
               <div class="b3-label config-item">
                 <div class="fn__block">
                   <div class="config-name">2. 填写凭据</div>
-                  <div class="b3-label__text">点右侧按钮直接打开「设置 - 人工智能」并定位到这个供应商，在那里粘贴 API Key；模型也用思源原生的方式自己添加，插件不碰模型列表。</div>
+                  <div class="b3-label__text">点右侧按钮直接打开「设置 - 人工智能」并定位到这个供应商，在那里粘贴 API Key；模型可以在那里逐个手动添加，或者点下面的「添加所有可用模型」一次补齐。</div>
                   <div class="fn__hr"></div>
                   <div class="opencode-go-step fn__block">
                     <button type="button" class="b3-button b3-button--outline fn__flex-center fn__size200">打开设置页</button>
@@ -552,13 +552,21 @@ body { width: 1024px; height: 768px; }
                       <div class="opencode-go-check__row"><span class="opencode-go-check__label">API Key</span><span class="opencode-go-check__value ft__breakword opencode-go-check__value--ok">正常</span></div>
                       <div class="opencode-go-check__row"><span class="opencode-go-check__label">模型</span><span class="opencode-go-check__value ft__breakword">1</span></div>
                       <div class="opencode-go-check__row"><span class="opencode-go-check__label">会话变量</span><span class="opencode-go-check__value ft__breakword">20260929210519-wu8r5xz</span></div>
-                      <div class="opencode-go-check__row"><span class="opencode-go-check__label">用量</span><span class="opencode-go-check__value ft__breakword opencode-go-check__value--ok">最后更新：21:09:08</span></div>
+                      <div class="opencode-go-check__row"><span class="opencode-go-check__label">用量</span><span class="opencode-go-check__value ft__breakword opencode-go-check__value--ok">最后更新：3 分钟前</span></div>
                       <div class="opencode-go-check__row"><span class="opencode-go-check__label"></span><span class="opencode-go-check__value ft__breakword opencode-go-check__tip">变量库里的 OPENCODE_GO_SESSION 由本插件维护，请不要删除或改名。</span></div>
                     </div>
                   </div>
                 </div>
               </div>
 
+              <div class="b3-label config-item">
+                <div class="fn__block">
+                  <div class="config-name">添加所有可用模型</div>
+                  <div class="b3-label__text">从 OpenCode Go 端点（`/v1/models`）拉一份模型清单，把该供应商里还没有的补进去；已有同名模型不会重复添加，也不会改动你填的显示名与上下文长度。</div>
+                  <div class="fn__hr"></div>
+                  <button type="button" class="b3-button b3-button--outline fn__flex-center fn__size200 fn__block">添加所有可用模型</button>
+                </div>
+              </div>
               <div class="b3-label config-item">
                 <div class="fn__block">
                   <div class="config-name">修复供应商配置</div>

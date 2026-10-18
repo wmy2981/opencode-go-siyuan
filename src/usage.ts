@@ -10,6 +10,7 @@ import {
     usageURLFrom,
 } from "./opencode";
 import type {
+    InlineWindowPreset,
     LogFn,
     UsageFailure,
     UsageFailureKind,
@@ -21,6 +22,25 @@ import type {
 } from "./types";
 
 export const USAGE_WINDOW_KEYS: UsageWindowKey[] = ["rolling", "weekly", "monthly"];
+
+/**
+ * 输入框下方那一行里每档「详细程度」对应的窗口，按展示顺序排列。
+ * 弹窗不受它影响，始终显示全部三个窗口。
+ */
+export const INLINE_WINDOW_PRESETS: Record<InlineWindowPreset, UsageWindowKey[]> = {
+    h5Week: ["rolling", "weekly"],
+    h5WeekMonth: ["rolling", "weekly", "monthly"],
+    h5Month: ["rolling", "monthly"],
+    weekMonth: ["weekly", "monthly"],
+    h5: ["rolling"],
+};
+
+/**
+ * 按当前显示样式换算出要展示的百分比。
+ * 上游只给「已用」，剩余量就是 100 减它；进度条与数字共用这个值，免得条和文字各说各话。
+ */
+export const displayedPercent = (percent: number, remaining: boolean): number =>
+    remaining ? Math.max(0, 100 - percent) : percent;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object";

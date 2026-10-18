@@ -60,11 +60,23 @@ export interface UsageTarget {
     apiKey: string;
     /** 当前选中的模型 id —— 思源自己分配的那个，只在供应商模型列表里用来定位条目。 */
     modelId: string;
-    /** 该模型真正发给上游的 name；界面上展示的应该是它，而不是思源分配的 id。 */
+    /**
+     * 该模型真正发给上游的 name；界面上展示的应该是它，而不是思源分配的 id。
+     * 当前模型不属于任何 OpenCode Go 供应商时为空 —— 用量弹窗据此整行不显示模型。
+     */
     modelName: string;
 }
 
 export type UserAgentMode = "kernel" | "plugin" | "custom";
+
+/**
+ * 用量的显示样式。
+ * `used` 是上游返回的已用百分比（默认，与接口口径一致）；`remaining` 显示 100 减去它的剩余量。
+ */
+export type UsageStyle = "used" | "remaining";
+
+/** 输入框下方那一行显示哪些窗口；取值与设置项一一对应（见 `INLINE_WINDOW_PRESETS`）。 */
+export type InlineWindowPreset = "h5Week" | "h5WeekMonth" | "h5Month" | "weekMonth" | "h5";
 
 export interface PluginSettings {
     /**
@@ -80,6 +92,10 @@ export interface PluginSettings {
     customUserAgent: string;
     /** 在智能体输入框下方显示用量文本。 */
     inlineUsage: boolean;
+    /** 那一行里显示哪几个窗口；默认「5 小时和周」。 */
+    inlineWindows: InlineWindowPreset;
+    /** 百分比按「已用量」还是「剩余量」显示。 */
+    usageStyle: UsageStyle;
     /** 在顶栏注册一个打开用量弹窗的插件按钮；默认关闭。 */
     topBarButton: boolean;
     refreshIntervalSeconds: number;
