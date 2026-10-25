@@ -79,34 +79,22 @@ request**, so the injected provider carries:
 }
 ```
 
-Before a request to `/api/ai/agent/chat` (or `/api/ai/editor/chat`) is sent, the plugin reads the
-`sessionID` (respectively `taskID`) from the request body, writes it into the variable if it
-changed, and only then lets the request through. The value is therefore correct from the first turn
-and stays stable for the rest of the conversation.
+Before a request to `/api/ai/agent/chat` (or `/api/ai/editor/chat`) leaves the client, the plugin
+reads `sessionID` (or `taskID`) from the body and writes it into the variable when it changed, so the
+value is correct from the first turn and stays stable for the rest of the conversation.
 
-Requests that other plugins relay to the same endpoint get the installation-level id instead. Such a
-plugin does not go through `/api/ai/*/chat`: it builds its own headers and hands the call to
-`/api/network/forwardProxy`, resolving `{{vars.OPENCODE_GO_SESSION}}` itself — that is the path
-[ai-title-siyuan](https://github.com/wmy2981/ai-title-siyuan) takes to generate note titles. Those
-requests have no conversation to belong to, so the plugin switches the variable back to the
-installation-level id before they leave, and repeating the same call keeps hitting the same session.
-Fill this into that plugin's **custom request headers**:
+Requests that other plugins relay to the same endpoint through `/api/network/forwardProxy` have no
+conversation to belong to, so the plugin switches the variable back to the installation-level id
+before they leave; such a plugin has to carry the header itself —
+`{"x-opencode-session": "{{vars.OPENCODE_GO_SESSION}}"}` — as
+[ai-title-siyuan](https://github.com/wmy2981/ai-title-siyuan) does. The plugin's own `/v1/usage`
+query is exempt.
 
-```json
-{
-  "x-opencode-session": "{{vars.OPENCODE_GO_SESSION}}"
-}
-```
-
-The plugin's own `/v1/usage` query is exempt from this rule: the value it sends is the one the
-detail dialog shows.
-
-**Known limitation:** SiYuan's kernel cannot inject a per-request header on its own. The plugin
-therefore uses the variable channel plus a narrowly scoped `window.fetch` interception, restores
-`fetch` on unload, and falls back to the old value if writing the variable fails — a missing or
-stale variable still produces a non-empty header, so the request is never rejected with `400`, it
-only loses some prompt-cache affinity. If you turn the per-conversation switch off, one
-installation-level id is sent for everything.
+**Known limitation:** the kernel cannot inject a per-request header, so the plugin uses the variable
+plus a narrowly scoped `window.fetch` interception; `fetch` is restored on unload and a failed write
+falls back to the old value — a missing or stale variable still yields a non-empty header, so nothing
+is rejected with `400`, only some prompt-cache affinity is lost. With the per-conversation switch off,
+one installation-level id is sent for everything.
 
 ## Settings
 
@@ -138,48 +126,42 @@ a restart.
 
 ## Notes and limitations
 
-- **This is not an official OpenCode client.** OpenCode's Go documentation says the plan is meant
-  for OpenCode and for coding agents that produce similar traffic, that traffic is monitored for
-  abuse, and it keeps a list of *validated clients* — anything else, including this plugin, is
-  explicitly **not guaranteed to keep working**. Their terms of service also forbid using multiple
-  accounts to circumvent usage limits and make a breach grounds for terminating access. The settings
-  panel repeats this in red above the steps: use it at your own risk.
-- The usage endpoint `GET https://opencode.ai/zen/go/v1/usage` is a first-party route of OpenCode
-  itself, but it is **not documented** and its response shape already changed once. The plugin parses
-  it defensively, treats missing fields as *unknown* instead of zero, and drops the placeholder reset
-  time that the upstream reports while a window sits at 0%.
+- **This is not an official OpenCode client.** Its Go documentation says the plan is meant for
+  OpenCode and for coding agents that produce similar traffic, that traffic is monitored for abuse,
+  and that anything outside its *validated clients* list — this plugin included — is **explicitly not
+  guaranteed to keep working**; the terms of service forbid using multiple accounts to circumvent
+  usage limits and make a breach grounds for terminating access. The settings panel repeats this in
+  red above the steps: use it at your own risk.
+- The usage endpoint `GET https://opencode.ai/zen/go/v1/usage` is a first-party route but **not
+  documented**, and its response shape already changed once: the plugin parses it defensively, treats
+  missing fields as *unknown* instead of zero, and drops the placeholder reset time reported while a
+  window sits at 0%. It returns one aggregate percentage per window whereas the documented limits are
+  per model, so a specific model can differ from the console page.
 - That route answers an `OPTIONS` preflight with `404` and sends **no CORS headers** (unlike
-  `/v1/models`), so the renderer cannot call it directly — a browser-side `fetch` with an
-  `Authorization` header fails as `TypeError: Failed to fetch` before it is even sent. The plugin
-  therefore relays the query through the kernel, exactly like the chat request. The key itself never
-  leaves the machine.
-- It returns one aggregate percentage per window. OpenCode documents the limits per model, so the
-  numbers can differ from the console page for a specific model.
-- Model entries use the bare model id (for example `deepseek-v4.1-flash`) as the upstream model name;
-  the dialog shows that name rather than the internal id SiYuan assigns to the entry. The row is
-  hidden altogether while the current model belongs to another provider.
-- The model list stays untouched by default: only *Add all available models* fetches it once, and it
-  merely appends the missing entries — display names, context lengths and enabled flags of existing
-  entries are left alone. The self check only counts them.
+  `/v1/models`), so the renderer cannot call it and the query goes through the kernel, like the chat
+  request; the key itself never leaves the machine.
+- Model entries take their upstream name from the `name` field (for example `deepseek-v4.1-flash`),
+  which is what the dialog shows instead of SiYuan's internal entry id, and the row is hidden while
+  the current model belongs to another provider. The list stays untouched by default: only *Add all
+  available models* fetches it, and it merely appends the missing entries — display names, context
+  lengths and enabled flags of existing entries are kept. The self check only counts them.
 - The API key must be printable ASCII. Whitespace, zero width characters and byte order marks are
-  stripped automatically (they are what makes the gateway answer *Invalid API key.*), but any other
-  non-ASCII character has to be fixed by pasting the key again; the settings self check points at the
-  exact position.
-- SiYuan's own **Test connection** button under *Settings → AI* shows *"the model is not in the
-  available list"* for **any** failure of its one-token probe whenever `/v1/models` answered (that
-  endpoint needs no key), so a rejected or missing key looks like a model problem there. The error box
-  in the usage dialog, the self check and the debug log report what the endpoint actually said.
-- The card icon is applied by the plugin after the native list renders: SiYuan only ever takes a
-  provider icon from its own built-in preset table (matched by base URL) and exposes no hook for
-  third-party brands, so the plugin swaps the avatar of every card that points at the official
-  endpoint. This also means the icon survives a rename of the provider or a sync from another device.
-- The `User-Agent` is injected through the provider's headers. If a future kernel release overwrites
+  stripped automatically (they are what makes the gateway answer *Invalid API key.*); any other
+  non-ASCII character has to be fixed by pasting the key again, and the self check points at the exact
+  position.
+- SiYuan's own **Test connection** button shows *"the model is not in the available list"* for **any**
+  failure of its probe whenever `/v1/models` answered (that endpoint needs no key), so a missing or
+  rejected key looks like a model problem there; the error box in the usage dialog, the self check and
+  the debug log report what the endpoint actually said.
+- The card icon is applied by the plugin after the native list renders: SiYuan only takes a provider
+  icon from its own built-in preset table (matched by base URL) and exposes no hook for third-party
+  brands, so the plugin swaps the avatar of every card pointing at the official endpoint — the icon
+  therefore survives a rename or a sync from another device.
+- The `User-Agent` is injected through the provider's headers; if a future kernel release overwrites
   it, switch the policy or set the header manually in *Settings → AI → OpenCode Go → Headers*.
-- The plugin does not write the API key to a log, a message or the DOM; it only uses the key stored in
-  the provider for the usage request.
-- `OPENCODE_GO_SESSION` lives in *Settings → Keys and variables*. The plugin maintains it and removes
-  it when the plugin is uninstalled; deleting it manually only costs cache affinity, never a
-  rejected request.
+- The plugin never writes the API key to a log, a message or the DOM, and the usage request only uses
+  the key stored in the provider. `OPENCODE_GO_SESSION` is maintained by the plugin and removed on
+  uninstall; deleting it manually only costs cache affinity, never a rejected request.
 
 ## Development
 
