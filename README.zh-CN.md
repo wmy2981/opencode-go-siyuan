@@ -73,6 +73,10 @@
 - 插件不会把 API Key 写进日志、提示或 DOM，用量请求只使用供应商配置里已存的 key。
   `OPENCODE_GO_SESSION` 由插件维护并在卸载时删除，手动删除只会损失缓存亲和性，不会导致请求被拒。
 
+## 集市趋势图表
+
+![集市趋势图表](https://siyuan-bazaar-stats-graph.sr1.cc.cd/api/chart/wmy2981/opencode-go-siyuan?metrics=downloads,rating,ratings&range=all&area=true&lang=zh)
+
 ## 开发
 
 ```bash
