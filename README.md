@@ -163,6 +163,10 @@ a restart.
   the key stored in the provider. `OPENCODE_GO_SESSION` is maintained by the plugin and removed on
   uninstall; deleting it manually only costs cache affinity, never a rejected request.
 
+## Bazaar Stats Graph
+
+![Bazaar stats graph](https://siyuan-bazaar-stats-graph.sr1.cc.cd/api/chart/wmy2981/opencode-go-siyuan?metrics=downloads,rating,ratings&range=all&area=true&lang=en)
+
 ## Development
 
 ```bash
