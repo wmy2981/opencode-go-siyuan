@@ -9,50 +9,15 @@ SiYuan's own AI settings page.
 
 ## What it does
 
-- **Native provider, created on request.** The plugin settings panel walks through three steps:
-  *create the `OpenCode Go` provider* → *paste the key on SiYuan's own AI page* → *check*. Nothing in
-  `Settings → AI` is touched before the matching button is clicked, and an entry that already
-  points at the official endpoint is adopted instead of duplicated. Once created it is an ordinary
-  provider — official icon, rename it, paste the key, add or remove models, disable or delete it right
-  there in the native page. **Models are yours to add**; when you want the whole list at once, the
-  settings page has *Add all available models*, which only appends the entries the provider is
-  missing.
-- **Per-conversation `x-opencode-session`.** OpenCode Go rejects requests without that header
-  (`400 MissingSessionID`, checked before authentication) and asks for a stable id per conversation
-  so that routing and prompt caching work. The kernel only supports static provider headers, so the
-  plugin writes each conversation's own id into the `OPENCODE_GO_SESSION` variable *before* the
-  request leaves the client.
-- **Usage.** Rolling (5 hour), weekly and monthly percentages, shown either as the amount used or as
-  the amount left — in the plugin settings panel and as a line under the agent input area. Click that
-  line for a detail dialog with the three windows, their reset countdowns and the current endpoint;
-  the upstream model name appears only while the current model belongs to this provider, and the
-  session id only when the dialog was opened from that line. The same dialog opens from the optional
-  top bar button, which is off by default. A failed query never blanks the UI: the last successful
-  data stays on screen with a relative `last updated` (`just now`, `30s ago`, `5m ago`, `2h ago`), and
-  the failure itself is still spelled out in the error box below that footer; the two do not conflict.
-  When nothing has ever been fetched, the line under the input area shows as unavailable.
+- Native provider, created on request
+- Per-conversation `x-opencode-session`
+- Full usage display
 
 ## Requirements
 
-- SiYuan **3.8.5** or newer. Every API this plugin relies on was verified to exist at the `v3.8.5`
-  tag: `Provider.Headers`, `ResolveAIProviderHeaders`, `/api/setting/setVariables`,
-  `/api/setting/setAI`, `/api/network/forwardProxy`, `openSetting(app, tab)` from the plugin API,
-  `window.siyuan.config.variables`.
-- An OpenCode Go subscription and an API key from <https://opencode.ai/auth>.
-- The usage query is relayed by the kernel (`/api/network/forwardProxy`, the same route the chat
-  request uses), which needs the **administrator** role. The desktop and mobile apps always have it;
-  a browser session logged in with a read-only access code does not — the query then fails, the dialog
-  and the settings self check spell out why, and the UI never passes stale numbers off as current
-  (the relative update time shows how old they are).
+- SiYuan **3.8.5** or newer.
 
-## Install
-
-1. Download `package.zip` from the latest release.
-2. Unzip it into `<workspace>/data/plugins/opencode-go-siyuan/` so that `plugin.json` sits directly
-   inside that folder.
-3. Enable the plugin in *Settings → Marketplace → Downloaded*.
-
-## Setup
+## Usage
 
 Open the plugin settings and follow the numbered guide — the plugin does nothing to the
 configuration on its own:
@@ -63,9 +28,7 @@ configuration on its own:
    provider, paste the API key and add the models you need the native way (or press *Add all available
    models* in the plugin settings to fill in the whole list).
 3. **Check.** Press the button to verify the provider, its headers, the key, the session variable and
-   the usage endpoint; the result is printed right below. The check can be run repeatedly, and four of
-   its rows are coloured by severity: missing headers, differing values, the key and the usage query
-   show up green (fine), amber (warning) or red (broken).
+   the usage endpoint; the result is printed right below.
 
 ## How the session header works
 
@@ -95,34 +58,6 @@ plus a narrowly scoped `window.fetch` interception; `fetch` is restored on unloa
 falls back to the old value — a missing or stale variable still yields a non-empty header, so nothing
 is rejected with `400`, only some prompt-cache affinity is lost. With the per-conversation switch off,
 one installation-level id is sent for everything.
-
-## Settings
-
-| Setting | Default | Meaning |
-| --- | --- | --- |
-| *guide: create / fill in / check* | — | The three buttons at the top; every change to SiYuan's configuration happens here and only after a click. |
-| Add all available models | — | Fetches the list from `/v1/models` and adds the models the provider does not have yet; existing entries are neither duplicated nor renamed or re-measured. |
-| Repair the provider config | — | Fill in missing required headers and endpoint fields, strip blanks and zero width characters out of the API key, and rebuild the provider if it was deleted (an existing entry on the same endpoint is adopted instead of duplicated). |
-| Usage detail dialog | — | Opens the same dialog as clicking that line: the three windows, how long ago the last successful query ran, and the error detail when a query failed; the session id is only shown when the dialog is opened from that agent line. |
-| Dynamic x-opencode-session header | on | *On* writes each conversation's own `x-opencode-session` before the request leaves; *off* sends the static session id below for everything. Requests other plugins relay to the same endpoint always use the static id. |
-| Static session ID | empty | Used when the switch above is off, and by other plugins relaying requests to the same endpoint; an installation-level id is generated when left empty. |
-| User-Agent policy | kernel | Keep SiYuan's own User-Agent, use the plugin identity, or type a custom one. |
-| Custom User-Agent | empty | Only used with the custom policy. |
-| Show usage in the agent panel | on | The `OpenCode Go · 5h n% · Week n%` line under the agent input area. |
-| Windows shown below the agent input | 5 hours and week | Which windows that line shows: 5 hours and week / 5 hours, week and month / 5 hours and month / week and month / 5 hours only. The dialog is unaffected. |
-| Usage display style | used | Whether the percentages in the dialog and on that line show the amount used or the amount left; the bar follows the same choice. |
-| Top bar usage button | off | Registers a plugin button in the top bar that opens the usage dialog. |
-| Usage refresh interval | 300 s | 30 – 3600 seconds. Opening the settings page or the detail dialog forces one refresh. |
-| Debug log | off | Prefixed diagnostics in the developer console. Does not contain the API key. |
-
-Below the third step the panel shows a read-only self check: whether a provider is present on the
-official endpoint, which required headers are missing or differ, whether the key is set (and whether
-it holds a non-ASCII character), how many models have been added, the current session id and the last
-usage result. The same result is what the **Check** button refreshes.
-
-Deleting the provider in *Settings → AI* is respected permanently: the plugin creates it only from
-the **Create the OpenCode Go provider** button, so it does not reappear on its own, not even after
-a restart.
 
 ## Notes and limitations
 
