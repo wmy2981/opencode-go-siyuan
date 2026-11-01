@@ -56,42 +56,24 @@ interface CheckRow {
 }
 
 /**
- * 打开插件设置面板，并挡掉思源写死的「自动聚焦输入框」。
+ * 本插件的设置面板。
  *
- * 思源 `app/src/plugin/Setting.ts` 的 `open()` 会给面板里**每一个**输入控件调一次
- * `bindInput()`（它第一行就是 `inputElement.focus()`，而且此时控件还没插进弹窗），最后再把
- * 焦点塞进 `contentElement.querySelector("input, textarea")`。
+ * 两件事只能在这里做，因为宿主的 `Setting` 在 `open()` 里自己 new 一个 `Dialog`，插件没有
+ * 别的插手点：
  *
- * 桌面端这只是焦点被抢走；移动端更糟：`app/src/mobile/index.ts` 改写过
- * `HTMLElement.prototype.focus`，每次 focus() 之后都会对「可输入元素」直接调原生桥的
- * `showKeyboard()`。它判断的是**调用 focus 的那个元素**，跟 focusin 回调之后焦点又被移到
- * 哪里无关 —— 所以事后把焦点改回弹窗容器来不及，键盘照样弹出来（面板还会顺带滚到最后一个
- * 输入框那里）。这里改成在 `open()` 期间临时接管 `HTMLElement.prototype.focus`，把这两次
- * 聚焦请求都丢掉：元素还不在文档里时 focus 本来就是空操作、但原生桥照样会被叫起来，所以
- * 未连接的输入控件也要挡。不产生 focus，也就不会有原生键盘；`open()` 结束立即还原，
- * 之后再点输入框照常聚焦。
- */
-export const openWithoutAutofocus = (setting: Setting, name: string): void => {
-    const nativeFocus = HTMLElement.prototype.focus;
-    const guarded = function (this: HTMLElement, options?: FocusOptions): void {
-        if (this.matches("input, textarea") && (!this.isConnected || this.closest(".b3-dialog__content"))) {
-            return;
-        }
-        nativeFocus.call(this, options);
-    };
-    HTMLElement.prototype.focus = guarded;
-    try {
-        setting.open(name);
-    } finally {
-        HTMLElement.prototype.focus = nativeFocus;
-    }
-};
-
-/**
- * 思源的 `Setting` 在 `open()` 里自己 new 一个 `Dialog`，插件没有机会传 `containerClassName`；
- * 而移动端样式（`src/index.scss` 里的 `.opencode-go-panel--mobile`）必须只作用在本插件的
- * 弹窗上 —— `.config-item` 这类类名是所有插件的设置页共用的，不能全局改。所以在 `open()`
- * 之后补一个只属于本插件的作用域类名。
+ * 1. 补作用域类名。`Setting` 生成的弹窗用的是 `.config-item` 这类所有插件设置页共用的类名，
+ *    移动端布局调整和图层提示都必须挂在本插件私有的类上，不能全局改。
+ * 2. 移动端挡掉宿主的自动聚焦。`app/src/plugin/Setting.ts` 的 `open()` 会聚焦两次输入控件：
+ *    先给**每一个**输入控件调一次 `bindInput()`（它第一行就是 `inputElement.focus()`，此时
+ *    控件还没插进弹窗），最后再把焦点塞进 `contentElement.querySelector("input, textarea")`。
+ *    桌面端这只是焦点被抢走；移动端更糟：`app/src/mobile/index.ts` 改写过
+ *    `HTMLElement.prototype.focus`，每次 focus() 之后都会对「可输入元素」直接调原生桥的
+ *    `showKeyboard()`。它判断的是**调用 focus 的那个元素**，跟 focusin 回调之后焦点又被移到
+ *    哪里无关 —— 事后把焦点改回弹窗容器来不及，键盘照样弹出来（面板还会顺带滚到最后一个
+ *    输入框那里）。所以在 `open()` 的同步流程里临时接管 `HTMLElement.prototype.focus`，
+ *    把对 input/textarea 的聚焦请求整个丢掉：元素还不在文档里时 focus 本来就是空操作、
+ *    但原生桥照样会被叫起来，所以未连接的控件也要挡。`open()` 结束立即还原，用户之后点
+ *    输入框照常聚焦、照常输入。
  */
 class PanelSetting extends Setting {
     constructor(private readonly mobile: boolean, options: ConstructorParameters<typeof Setting>[0]) {
@@ -99,11 +81,47 @@ class PanelSetting extends Setting {
     }
 
     open(name: string): void {
-        super.open(name);
+        if (!this.mobile) {
+            // 桌面端保持宿主行为：宿主自己会把焦点放进第一个输入框。
+            super.open(name);
+            this.scope();
+            return;
+        }
+        const nativeFocus = HTMLElement.prototype.focus;
+        const guarded = function (this: HTMLElement, options?: FocusOptions): void {
+            if (this instanceof HTMLInputElement || this instanceof HTMLTextAreaElement) {
+                return;
+            }
+            nativeFocus.call(this, options);
+        };
+        HTMLElement.prototype.focus = guarded;
+        try {
+            super.open(name);
+        } finally {
+            HTMLElement.prototype.focus = nativeFocus;
+        }
+        this.scope();
+    }
+
+    /**
+     * 给宿主生成的弹窗补本插件私有的类名。
+     *
+     * 容器类只在移动端加：它带的是入场用的图层提示，桌面端不需要额外的合成层。
+     * 补类在 `open()` 返回后立刻执行，而 `b3-dialog--open` 由宿主的 `Dialog` 在下一个事件
+     * 循环里才加，因此这些类名在入场动画开始之前就已经生效。
+     */
+    private scope(): void {
         // npm 包的 `Setting` 类型没声明运行时确实存在的 `dialog` 字段。
         const dialog = (this as unknown as {dialog?: {element: HTMLElement}}).dialog;
-        dialog?.element.classList.add("opencode-go-panel");
-        dialog?.element.classList.toggle("opencode-go-panel--mobile", this.mobile);
+        const root = dialog?.element;
+        if (!root) {
+            return;
+        }
+        root.classList.add("opencode-go-panel");
+        root.classList.toggle("opencode-go-panel--mobile", this.mobile);
+        if (this.mobile) {
+            root.querySelector(".b3-dialog__container")?.classList.add("opencode-go-panel__container");
+        }
     }
 }
 

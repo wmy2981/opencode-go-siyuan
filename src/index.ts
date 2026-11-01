@@ -11,7 +11,7 @@ import type {AddModelsResult, ProviderCheck} from "./provider";
 import {ProviderIconPatcher} from "./providerIcon";
 import {SessionHeaderController} from "./session";
 import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from "./settings";
-import {openSettingsPanel, openWithoutAutofocus} from "./settingsPanel";
+import {openSettingsPanel} from "./settingsPanel";
 import {isUsageFailure} from "./types";
 import type {LogFn, PluginSettings, UsageFailure, UsageResult, UsageSnapshot} from "./types";
 import {INLINE_WINDOW_PRESETS, UsageClient} from "./usage";
@@ -186,7 +186,8 @@ export default class OpenCodeGoPlugin extends Plugin {
             isMobile: isMobileFrontend,
             log: this.log,
         });
-        openWithoutAutofocus(panel.setting, this.displayName || this.name);
+        // 面板自己处理移动端的自动聚焦与图层提示，见 `settingsPanel.ts` 的 `PanelSetting`。
+        panel.setting.open(this.displayName || this.name);
         // 打开设置页时强制刷新一次，结果回来后重绘只读自检区。
         void this.refreshUsage().then(() => panel.refreshInfo());
     }

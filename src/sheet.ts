@@ -3,6 +3,11 @@ import type {Dialog} from "siyuan";
 /** 面板根节点与面板本体（`.b3-dialog__container`）的样式类，全部由思源移动端样式表定义。 */
 const SHEET_ROOT_CLASS = "mobile-bottom-sheet-dialog";
 const SHEET_CLASS = "mobile-bottom-sheet";
+/**
+ * 面板容器上的私有类，只用来挂本插件的样式（入场用的图层提示）。
+ * 宿主共用的 `.b3-dialog__container` 不做任何全局修改。
+ */
+const SHEET_LAYER_CLASS = "opencode-go-sheet";
 /** 下拉关闭的判定：位移超过 min(120px, 面板高度的 1/4)，或位移超过 20px 且速度够快。 */
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 0.6;
@@ -69,7 +74,8 @@ export const bindBottomSheet = (dialog: Dialog, close: () => void): (() => void)
     }
 
     root.classList.add(SHEET_ROOT_CLASS);
-    sheet.classList.add(SHEET_CLASS);
+    // 私有类只带图层提示，不参与外观与入场时序；类名在 `b3-dialog--open` 加上之前挂好。
+    sheet.classList.add(SHEET_CLASS, SHEET_LAYER_CLASS);
     // 底部面板只支持下拉关闭，不参与通用弹窗的移动与缩放：标题栏带 `resize__move`、容器带一圈
     // `resize__*` 把手，触摸设备上它们会被思源的拖拽桥接转成 mousedown，进而整块面板被拖走或
     // 缩放（`app/src/util/touchDragBridge.ts` 对手指落在弹窗内 `resize__*` 上的情况照旧派发

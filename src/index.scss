@@ -248,3 +248,24 @@
     }
   }
 }
+
+// 移动端浮层的图层提示。
+//
+// 宿主的 `Dialog` 在 `.b3-dialog__container` 上做 scale / opacity / transform 入场，底部面板
+// 则是在同一个容器上做 `translateY` 过渡；动画期间会临时建合成层，结束时可能出现一帧旧画面。
+// 容器必须在动画开始前就有常驻的 `will-change: transform`，而不是等 `transitionend` 再补。
+//
+// 两个类都只在移动端出现：`opencode-go-sheet` 由 `sheet.ts` 挂在底部面板容器上，
+// `opencode-go-panel__container` 由 `settingsPanel.ts` 挂在设置面板容器上。宿主共用的
+// `.b3-dialog__container` 不做任何全局修改。
+//
+// 含滚动正文的浮层还要同时处理正文：此前出现过外壳正常、只有 `.b3-dialog__content`
+// 混入旧画面的情况。
+.b3-dialog__container.opencode-go-sheet,
+.b3-dialog__container.opencode-go-panel__container {
+  will-change: transform;
+
+  .b3-dialog__content {
+    will-change: transform;
+  }
+}
