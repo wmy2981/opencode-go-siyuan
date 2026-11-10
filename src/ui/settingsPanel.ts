@@ -1,8 +1,8 @@
 import {Setting, showMessage} from "siyuan";
 import {formatRelativeTime} from "./dialog";
-import type {Translate} from "./i18n";
-import type {AddModelsResult, ProviderCheck} from "./provider";
-import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "./settings";
+import type {Translate} from "../core/i18n";
+import type {AddModelsResult, ProviderCheck} from "../opencode/provider";
+import {MAX_REFRESH_SECONDS, MIN_REFRESH_SECONDS} from "../core/settings";
 import type {
     InlineWindowPreset,
     PluginSettings,
@@ -11,7 +11,7 @@ import type {
     UsageSnapshot,
     UsageStyle,
     UserAgentMode,
-} from "./types";
+} from "../core/types";
 
 export interface SettingsPanelHost {
     t: Translate;

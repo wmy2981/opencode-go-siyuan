@@ -1,6 +1,6 @@
-import type {Translate} from "./i18n";
-import {displayedPercent} from "./usage";
-import type {LogFn, UsageFailure, UsageSnapshot, UsageWindowKey} from "./types";
+import type {Translate} from "../core/i18n";
+import {displayedPercent} from "../opencode/usage";
+import type {LogFn, UsageFailure, UsageSnapshot, UsageWindowKey} from "../core/types";
 
 /** 输入区整块，用量行插在它后面（输入框外面、紧贴下沿）。 */
 const INPUT_AREA_SELECTOR = ".sy__agentChat .agent-chat__input-area";

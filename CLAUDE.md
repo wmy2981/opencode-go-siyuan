@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Releasing
 
-The version string is authoritative in `package.json` and `plugin.json`; CI fails when the two disagree. `src/opencode.ts` no longer holds a literal — `DEFAULT_PLUGIN_UA` gets its version from `plugin.json` at build time (`webpack.DefinePlugin` → `__PLUGIN_VERSION__`), so the identity the plugin sends always matches the installed build. The sample `User-Agent` lines in `README.md` and `README.zh-CN.md` are illustrative; update them with a version bump only to keep the docs readable.
+The version string is authoritative in `package.json` and `plugin.json`; CI fails when the two disagree. `src/opencode/opencode.ts` no longer holds a literal — `DEFAULT_PLUGIN_UA` gets its version from `plugin.json` at build time (`webpack.DefinePlugin` → `__PLUGIN_VERSION__`), so the identity the plugin sends always matches the installed build. The sample `User-Agent` lines in `README.md` and `README.zh-CN.md` are illustrative; update them with a version bump only to keep the docs readable.
 
 Do not tag or publish by hand: pushing to `main` runs `.github/workflows/cd.yml`, which rejects a version lower than the newest `v*` tag, skips the release when it is unchanged, and otherwise creates the tag and the GitHub release itself. Release notes are generated from commit subjects by `scripts/release-notes.mjs`.
 
@@ -27,13 +27,28 @@ Version bumps are the maintainer's call, never the agent's: do not touch `versio
 - README images use absolute URLs (`https://gcore.jsdelivr.net/gh/<owner>/<repo>@main/assets/...`), never repo-relative paths: the packaged `README.md` sits in the archive root, where `assets/` does not exist, and the kernel falls back to a `/plugins/<name>/assets/...` URL that 404s. Use the `gcore.jsdelivr.net` CNAME rather than `cdn.jsdelivr.net`: the latter answered every probe with a `301` to `raw.githubusercontent.com`, which is unreliable from mainland China, while Gcore served the same file (byte-identical) directly. Both are jsDelivr endpoints — the kernel builds `cdn.jsdelivr.net` URLs for its own package images, but an absolute URL in a README passes through it untouched.
 - `tsconfig.json` has `strictNullChecks: false` with `noImplicitAny: true`, and the bundle targets `es6`. Code that runs in SiYuan must not assume Node or Electron APIs.
 
+## Layout
+
+```
+src/
+├── index.ts   plugin entry: settings, commands, top-bar button, wiring
+├── index.scss
+├── i18n/      runtime tables; the host loads this directory, so the path is fixed
+├── core/      types, i18n lookup, logger, settings persistence
+├── opencode/  the OpenCode Go side: endpoint constants, provider registration,
+│              session header, usage queries
+└── ui/        usage dialog, settings panel, inline usage row, provider icons, clipboard
+```
+
+Dependencies point inward: `ui → opencode / core` and `opencode → core`; `index.ts` wires the three together.
+
 ## Architecture
 
 - `siyuan` is a webpack **external**: runtime objects (`Plugin`, `fetchSyncPost`, `Setting`, `Dialog`, `openSetting`, `window.siyuan`) always come from the host. The npm package is a types-only dependency at build time.
 - The plugin never touches SiYuan's configuration on its own. Creating, repairing or deleting the provider and writing `OPENCODE_GO_SESSION` all trace back to a button the user pressed; there is deliberately no "auto-inject on startup" switch, and a provider the user deleted stays deleted.
-- The per-conversation header works by wrapping `window.fetch`: `src/session.ts` writes `{{vars.OPENCODE_GO_SESSION}}` before `/api/ai/agent/chat` (body `sessionID`) or `/api/ai/editor/chat` (body `taskID`) is allowed through. The wrapper must be restored on `onunload`, must be a no-op for every other request, and must let the request proceed when the variable write fails — losing cache affinity is acceptable, blocking a chat message is not.
+- The per-conversation header works by wrapping `window.fetch`: `src/opencode/session.ts` writes `{{vars.OPENCODE_GO_SESSION}}` before `/api/ai/agent/chat` (body `sessionID`) or `/api/ai/editor/chat` (body `taskID`) is allowed through. The wrapper must be restored on `onunload`, must be a no-op for every other request, and must let the request proceed when the variable write fails — losing cache affinity is acceptable, blocking a chat message is not.
 - Every undocumented kernel API this plugin relies on is noted in a comment with the SiYuan file and version it was checked against; some of those APIs are missing from, or wrong in, the published typings. Do not "correct" such a call from the typings alone.
-- The usage route `GET /v1/usage` is first-party but undocumented and its response shape has already changed once, so `src/types.ts` and `src/usage.ts` treat missing fields as *unknown*, never as 0. It is reached through `/api/network/forwardProxy` because the renderer cannot call it directly (no CORS headers, `404` on preflight).
-- `src/inline.ts` and `src/providerIcon.ts` patch SiYuan's own DOM, keyed on internal class names and the base URL. Panels are rebuilt wholesale by the host, so both re-attach their observers instead of injecting once.
+- The usage route `GET /v1/usage` is first-party but undocumented and its response shape has already changed once, so `src/core/types.ts` and `src/opencode/usage.ts` treat missing fields as *unknown*, never as 0. It is reached through `/api/network/forwardProxy` because the renderer cannot call it directly (no CORS headers, `404` on preflight).
+- `src/ui/inline.ts` and `src/ui/providerIcon.ts` patch SiYuan's own DOM, keyed on internal class names and the base URL. Panels are rebuilt wholesale by the host, so both re-attach their observers instead of injecting once.
 - `src/index.ts` also owns the optional top bar usage button. Its brand icon is not hand-drawn and not a built-in symbol id: `webpack.config.js` extracts the inner graphics and `viewBox` of `assets/provider-icon.svg` into `__PROVIDER_ICON_*`, and the plugin registers that as an `addIcons` sprite (`iconOpenCodeGo`) which `addTopBar` references by id — one source for the official artwork, and the same rendering path as SiYuan's own toolbar icons.
-- Production builds deliberately keep every `console` call (`EsbuildPlugin` with `drop: []` / `pure: []`): diagnosability beats a few KB. The logger in `src/log.ts` is gated by the debug setting, dedupes by topic+message, and must never receive the API key.
+- Production builds deliberately keep every `console` call (`EsbuildPlugin` with `drop: []` / `pure: []`): diagnosability beats a few KB. The logger in `src/core/log.ts` is gated by the debug setting, dedupes by topic+message, and must never receive the API key.

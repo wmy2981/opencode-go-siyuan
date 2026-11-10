@@ -1,5 +1,5 @@
 import {fetchSyncPost} from "siyuan";
-import type {Translate} from "./i18n";
+import type {Translate} from "../core/i18n";
 import {
     DEFAULT_PLUGIN_UA,
     findBlockingNonASCII,
@@ -19,7 +19,7 @@ import type {
     UsageTarget,
     UsageWindow,
     UsageWindowKey,
-} from "./types";
+} from "../core/types";
 
 export const USAGE_WINDOW_KEYS: UsageWindowKey[] = ["rolling", "weekly", "monthly"];
 

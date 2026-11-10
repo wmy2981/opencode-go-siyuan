@@ -1,9 +1,9 @@
 import {Dialog, showMessage} from "siyuan";
 import {copyText} from "./clipboard";
-import type {Translate} from "./i18n";
+import type {Translate} from "../core/i18n";
 import {bindBottomSheet} from "./sheet";
-import {USAGE_WINDOW_KEYS, displayedPercent} from "./usage";
-import type {LogFn, UsageFailure, UsageSnapshot, UsageTarget, UsageWindowKey} from "./types";
+import {USAGE_WINDOW_KEYS, displayedPercent} from "../opencode/usage";
+import type {LogFn, UsageFailure, UsageSnapshot, UsageTarget, UsageWindowKey} from "../core/types";
 
 const WINDOW_TITLE_KEY: Record<UsageWindowKey, string> = {
     rolling: "dialog.rolling",
