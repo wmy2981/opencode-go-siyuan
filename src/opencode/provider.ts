@@ -12,7 +12,7 @@ import {
     SESSION_VARIABLE,
     USER_AGENT_HEADER,
 } from "./opencode";
-import type {ApiKeyIssue, LogFn, PluginSettings, UsageTarget} from "./types";
+import type {ApiKeyIssue, LogFn, PluginSettings, UsageTarget} from "../core/types";
 
 const AGENT_MODEL_PICKER_SELECTOR = ".sy__agentChat .agent-chat__model-picker";
 const DEFAULT_REQUEST_TIMEOUT = 120;

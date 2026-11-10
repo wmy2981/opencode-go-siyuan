@@ -1,6 +1,6 @@
-import {PROVIDER_DISPLAY_NAME, PROVIDER_ICON_URL} from "./opencode";
-import {officialProviderCards} from "./provider";
-import type {LogFn} from "./types";
+import {PROVIDER_DISPLAY_NAME, PROVIDER_ICON_URL} from "../opencode/opencode";
+import {officialProviderCards} from "../opencode/provider";
+import type {LogFn} from "../core/types";
 
 const CARDS_ID = "aiProviderCards";
 

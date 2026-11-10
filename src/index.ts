@@ -1,20 +1,20 @@
 import {getFrontend, openSetting, Plugin} from "siyuan";
 import type {IWebSocketData} from "siyuan";
 import "./index.scss";
-import {UsageDialog} from "./dialog";
-import type {Translate} from "./i18n";
-import {createTranslator} from "./i18n";
-import {InlineUsage} from "./inline";
-import {createLogger} from "./log";
-import {ProviderManager} from "./provider";
-import type {AddModelsResult, ProviderCheck} from "./provider";
-import {ProviderIconPatcher} from "./providerIcon";
-import {SessionHeaderController} from "./session";
-import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from "./settings";
-import {openSettingsPanel} from "./settingsPanel";
-import {isUsageFailure} from "./types";
-import type {LogFn, PluginSettings, UsageFailure, UsageResult, UsageSnapshot} from "./types";
-import {INLINE_WINDOW_PRESETS, UsageClient} from "./usage";
+import {UsageDialog} from "./ui/dialog";
+import type {Translate} from "./core/i18n";
+import {createTranslator} from "./core/i18n";
+import {InlineUsage} from "./ui/inline";
+import {createLogger} from "./core/log";
+import {ProviderManager} from "./opencode/provider";
+import type {AddModelsResult, ProviderCheck} from "./opencode/provider";
+import {ProviderIconPatcher} from "./ui/providerIcon";
+import {SessionHeaderController} from "./opencode/session";
+import {DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings} from "./core/settings";
+import {openSettingsPanel} from "./ui/settingsPanel";
+import {isUsageFailure} from "./core/types";
+import type {LogFn, PluginSettings, UsageFailure, UsageResult, UsageSnapshot} from "./core/types";
+import {INLINE_WINDOW_PRESETS, UsageClient} from "./opencode/usage";
 
 /** 跳到供应商详情页时等待宿主渲染的上限与轮询间隔。 */
 const JUMP_TIMEOUT_MS = 3000;

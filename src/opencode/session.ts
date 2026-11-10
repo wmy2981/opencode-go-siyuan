@@ -1,7 +1,7 @@
 import {fetchSyncPost} from "siyuan";
 import type {SettingVariable, SettingVariables} from "siyuan";
 import {isOpenCodeGoBaseURL, newSessionID, SESSION_VARIABLE} from "./opencode";
-import type {LogFn, PluginSettings} from "./types";
+import type {LogFn, PluginSettings} from "../core/types";
 
 const AGENT_CHAT_PATH = "/api/ai/agent/chat";
 const EDITOR_CHAT_PATH = "/api/ai/editor/chat";
@@ -42,7 +42,7 @@ export const sessionIDOfChatRequest = (pathname: string, body: unknown): string 
  * 例如为笔记生成标题、拉模型列表 —— 用上一段对话的 ID 只会让同一件事的重复请求落到不同会话，
  * 所以放行前把变量写成安装级 ID。
  *
- * `/v1/usage` 除外：那是本插件自己的查询（`src/usage.ts`），详情窗口展示的也是变量里的当前值，
+ * `/v1/usage` 除外：那是本插件自己的查询（`src/opencode/usage.ts`），详情窗口展示的也是变量里的当前值，
  * 把它改掉等于每次刷新用量都冲掉对话 ID。
  */
 const isForeignOpenCodeGoProxyRequest = (pathname: string, body: unknown): boolean => {
