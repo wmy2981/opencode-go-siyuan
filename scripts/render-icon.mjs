@@ -6,8 +6,8 @@
 //
 // 先按 4 倍密度栅格化再缩放，边缘比直接栅格化到目标尺寸更锐利。
 //
-// 软件内显示的图标不走这里：它以 24x24 内联在 src/icons.ts 里，
-// 由 addIcons 注入，不随插件包分发文件。
+// 软件内显示的图标不走这里：webpack 从 assets/provider-icon.svg 抽出图形与 viewBox
+// （__PROVIDER_ICON_*），index.ts 用 addIcons 注册成 sprite；该 SVG 同时作为资产随包分发。
 import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
